@@ -5,17 +5,16 @@ import (
 	"strings"
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -86,6 +85,9 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			"name": schema.StringAttribute{
 				Description: "The name of the repository without spaces.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					plans.NewApiUpdateNotSupported(),
+				},
 			},
 			"owner": schema.StringAttribute{
 				Description: "The owner of the repository without spaces. " +
@@ -93,6 +95,9 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					"the user related to the terrafom credentials for this provider since " +
 					"Gitea does not offer an API to create repos owned by other users.",
 				Required: true,
+				PlanModifiers: []planmodifier.String{
+					plans.NewApiUpdateNotSupported(),
+				},
 			},
 			"auto_init": schema.BoolAttribute{
 				Description: "Whether the repository should be auto-initialized.",
@@ -100,7 +105,7 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Default:     booldefault.StaticBool(false),
 				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
+					plans.NewApiUpdateNotSupported(),
 				},
 			},
 			"default_branch": schema.StringAttribute{
@@ -119,24 +124,27 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Gitignores to use.",
 				Computed:    true,
 				Optional:    true,
+				Default:     stringdefault.StaticString(""),
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					plans.NewApiUpdateNotSupported(),
 				},
 			},
 			"issue_labels": schema.StringAttribute{
 				Description: "Label-Set to use.",
 				Computed:    true,
 				Optional:    true,
+				Default:     stringdefault.StaticString(""),
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					plans.NewApiUpdateNotSupported(),
 				},
 			},
 			"license": schema.StringAttribute{
 				Description: "License to use.",
 				Computed:    true,
 				Optional:    true,
+				Default:     stringdefault.StaticString(""),
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					plans.NewApiUpdateNotSupported(),
 				},
 			},
 			"private": schema.BoolAttribute{
@@ -149,8 +157,9 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Description: "Readme of the repository to create.",
 				Computed:    true,
 				Optional:    true,
+				Default:     stringdefault.StaticString(""),
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					plans.NewApiUpdateNotSupported(),
 				},
 			},
 			"template": schema.BoolAttribute{
@@ -160,15 +169,12 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Default:     booldefault.StaticBool(false),
 			},
 			"trust_model": schema.StringAttribute{
-				Description: "TrustModel of the repository. Can be: default, collaborator, committer or collaboratorcommitter.",
+				Description: "TrustModel of the repository. Can be: default, collaborator, committer or collaboratorcommitter. Defaults to `default`.",
 				Computed:    true,
 				Optional:    true,
-				Default:     stringdefault.StaticString(""),
+				Default:     stringdefault.StaticString("default"),
 				Validators: []validator.String{
 					stringvalidator.OneOf("default", "collaborator", "committer", "collaboratorcommitter"),
-				},
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"allow_manual_merge": schema.BoolAttribute{
@@ -176,9 +182,6 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Optional:    true,
 				Default:     booldefault.StaticBool(false),
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"allow_merge_commits": schema.BoolAttribute{
 				Description: "Either `true` to allow merging pull requests with a merge commit, or `false` to prevent merging pull requests with merge commits. Defaults to `true`.",
@@ -221,9 +224,6 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Optional:    true,
 				Default:     booldefault.StaticBool(false),
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"default_allow_maintainer_edit": schema.BoolAttribute{
 				Description: "Set to `true` to allow edits from maintainers by default. Defaults to `false`.",
@@ -251,15 +251,13 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Optional:    true,
 				Default:     booldefault.StaticBool(false),
-				PlanModifiers: []planmodifier.Bool{
-					boolplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"has_issues": schema.BoolAttribute{
 				Description: "Either `true` to enable issues for this repository or `false` to disable them. Defaults to `true`.",
 				Computed:    true,
 				Optional:    true,
-				Default:     booldefault.StaticBool(true)},
+				Default:     booldefault.StaticBool(true),
+			},
 			"has_projects": schema.BoolAttribute{
 				Description: "Either `true` to enable project unit, or `false` to disable them. Defaults to `true`.",
 				Computed:    true,
@@ -315,7 +313,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not check if owner is an organization for "+owner+": "+err.Error(),
+			"Could not check if owner is an organization for "+owner+": "+errors.GetAPIError(err),
 		)
 
 		return
@@ -344,7 +342,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not create repository, unexpected error: "+err.Error(),
+			"Could not create repository, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -356,11 +354,6 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.Description = types.StringValue(res.GetDescription())
 	plan.Private = types.BoolValue(res.GetPrivate())
 	plan.Template = types.BoolValue(res.GetTemplate())
-	// set unretreivable properties (these are set on create but cannot be retreived after)
-	plan.Gitignores = types.StringNull()
-	plan.IssueLabels = types.StringNull()
-	plan.License = types.StringNull()
-	plan.Readme = types.StringNull()
 
 	resEdit, _, err := r.client.RepositoryAPI.
 		RepoEdit(ctx, owner, res.GetName()).
@@ -393,7 +386,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not update all repository values, unexpected error: "+err.Error(),
+			"Could not update all repository values, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -437,7 +430,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea repository.",
-			"Could not read Gitea repository ID "+state.ID.String()+": "+err.Error(),
+			"Could not read Gitea repository ID "+state.ID.String()+": "+errors.GetAPIError(err),
 		)
 
 		return
@@ -465,12 +458,33 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.HasWiki = types.BoolValue(res.GetHasWiki())
 	state.IgnoreWhitespaceConflicts = types.BoolValue(res.GetIgnoreWhitespaceConflicts())
 	state.Website = types.StringValue(res.GetWebsite())
-	// set unretreivable properties (these are set on edit but cannot be retreived after)
-	state.AllowManualMerge = types.BoolValue(false)
-	state.AutoInit = types.BoolValue(false)
-	state.AutodetectManualMerge = types.BoolValue(false)
-	state.EnablePrune = types.BoolValue(false)
-	state.TrustModel = types.StringValue("")
+	if state.AutoInit.IsNull() {
+		state.AutoInit = types.BoolValue(false)
+	}
+	if state.Gitignores.IsNull() {
+		state.Gitignores = types.StringValue("")
+	}
+	if state.IssueLabels.IsNull() {
+		state.IssueLabels = types.StringValue("")
+	}
+	if state.License.IsNull() {
+		state.License = types.StringValue("")
+	}
+	if state.Readme.IsNull() {
+		state.Readme = types.StringValue("")
+	}
+	if state.AllowManualMerge.IsNull() {
+		state.AllowManualMerge = types.BoolValue(false)
+	}
+	if state.AutodetectManualMerge.IsNull() {
+		state.AutodetectManualMerge = types.BoolValue(false)
+	}
+	if state.EnablePrune.IsNull() {
+		state.EnablePrune = types.BoolValue(false)
+	}
+	if state.TrustModel.IsNull() {
+		state.TrustModel = types.StringValue("default")
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -516,7 +530,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Gitea repository.",
-			"Could not update repository, unexpected error: "+err.Error(),
+			"Could not update repository, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -566,7 +580,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea repository.",
-			"Could not get repository to delete, unexpected error: "+err.Error(),
+			"Could not get repository to delete, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -578,7 +592,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea repository.",
-			"Could not delete repository, unexpected error: "+err.Error(),
+			"Could not delete repository, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return

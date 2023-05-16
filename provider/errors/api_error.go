@@ -18,3 +18,16 @@ func IsNotFound(err error) bool {
 
 	return strings.Contains(apiError.Error(), "404")
 }
+
+func GetAPIError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	apiError, ok := err.(*api.GenericOpenAPIError)
+	if !ok {
+		return err.Error()
+	}
+
+	return string(apiError.Body())
+}

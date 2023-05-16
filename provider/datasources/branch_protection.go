@@ -3,6 +3,7 @@ package datasources
 import (
 	"context"
 	"terraform-provider-gitea/api"
+	"terraform-provider-gitea/provider/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -161,7 +162,7 @@ func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.Re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea branch protection.",
-			err.Error(),
+			errors.GetAPIError(err),
 		)
 
 		return

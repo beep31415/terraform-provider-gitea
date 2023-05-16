@@ -12,6 +12,7 @@ import (
 	"os"
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/provider/datasources"
+	"terraform-provider-gitea/provider/errors"
 	"terraform-provider-gitea/provider/resources"
 	"time"
 
@@ -196,7 +197,7 @@ func (p *giteaProvider) Configure(ctx context.Context, req provider.ConfigureReq
 			"Unable to Create Gitea API Client.",
 			"An unexpected error occurred when creating the Gitea API client. "+
 				"If the error is not clear, please contact the provider developers.\n\n"+
-				"Gitea Client Error: "+err.Error(),
+				"Gitea Client Error: "+errors.GetAPIError(err),
 		)
 
 		return

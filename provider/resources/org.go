@@ -4,6 +4,7 @@ import (
 	"context"
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -37,7 +37,6 @@ type orgResourceModel struct {
 	Location              types.String `tfsdk:"location"`
 	Visibility            types.String `tfsdk:"visibility"`
 	AdminChangeTeamAccess types.Bool   `tfsdk:"repo_admin_change_team_access"`
-	AvatarURL             types.String `tfsdk:"avatar_url"`
 }
 
 func NewOrgResource() resource.Resource {
@@ -62,10 +61,14 @@ func (d *orgResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"name": schema.StringAttribute{
 				Description: "The name of the organisation without spaces.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					plans.NewApiUpdateNotSupported(),
+				},
 			},
 			"full_name": schema.StringAttribute{
 				Description: "The full name of the organisation.",
 				Computed:    true,
+				Optional:    true,
 				Default:     stringdefault.StaticString(""),
 			},
 			"description": schema.StringAttribute{
@@ -99,14 +102,7 @@ func (d *orgResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Description: "Flag that indicates whether admin can change organization team access. Defaults to `true`.",
 				Computed:    true,
 				Optional:    true,
-				Default:     booldefault.StaticBool(true),
-			},
-			"avatar_url": schema.StringAttribute{
-				Description: "The organization avatar url.",
-				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Default:     booldefault.StaticBool(false),
 			},
 		},
 	}
@@ -142,7 +138,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea organization.",
-			"Could not create organization, unexpected error: "+err.Error(),
+			"Could not create organization, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -156,7 +152,6 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 	plan.Location = types.StringValue(res.GetLocation())
 	plan.Visibility = types.StringValue(res.GetVisibility())
 	plan.AdminChangeTeamAccess = types.BoolValue(res.GetRepoAdminChangeTeamAccess())
-	plan.AvatarURL = types.StringValue(res.GetAvatarUrl())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -175,7 +170,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea organization.",
-			"Could not read Gitea organization name "+state.Name.ValueString()+": "+err.Error(),
+			"Could not read Gitea organization name "+state.Name.ValueString()+": "+errors.GetAPIError(err),
 		)
 
 		return
@@ -189,7 +184,6 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	state.Location = types.StringValue(res.GetLocation())
 	state.Visibility = types.StringValue(res.GetVisibility())
 	state.AdminChangeTeamAccess = types.BoolValue(res.GetRepoAdminChangeTeamAccess())
-	state.AvatarURL = types.StringValue(res.GetAvatarUrl())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -218,7 +212,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea organization.",
-			"Could not update organization, unexpected error: "+err.Error(),
+			"Could not update organization, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -232,7 +226,6 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	plan.Location = types.StringValue(res.GetLocation())
 	plan.Visibility = types.StringValue(res.GetVisibility())
 	plan.AdminChangeTeamAccess = types.BoolValue(res.GetRepoAdminChangeTeamAccess())
-	plan.AvatarURL = types.StringValue(res.GetAvatarUrl())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -255,7 +248,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea organization.",
-			"Could not check the organization to delete exists, unexpected error: "+err.Error(),
+			"Could not check the organization to delete exists, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return
@@ -267,7 +260,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea organization.",
-			"Could not delete organizaton, unexpected error: "+err.Error(),
+			"Could not delete organizaton, unexpected error: "+errors.GetAPIError(err),
 		)
 
 		return

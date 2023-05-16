@@ -48,7 +48,7 @@ Manages a Gitea repository.
 - `private` (Boolean) Whether the repository is private. Defaults to `false`.
 - `readme` (String) Readme of the repository to create.
 - `template` (Boolean) Whether the repository is template. Defaults to `false`.
-- `trust_model` (String) TrustModel of the repository. Can be: default, collaborator, committer or collaboratorcommitter.
+- `trust_model` (String) TrustModel of the repository. Can be: default, collaborator, committer or collaboratorcommitter. Defaults to `default`.
 - `website` (String) A URL with more information about the repository.
 
 ### Read-Only

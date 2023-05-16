@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -29,7 +30,6 @@ type branchProtectionResource struct {
 }
 
 type branchProtectionResourceModel struct {
-	RuleName                      types.String `tfsdk:"rule_name"`
 	Owner                         types.String `tfsdk:"owner"`
 	Repo                          types.String `tfsdk:"repo"`
 	BranchName                    types.String `tfsdk:"branch_name"`
@@ -63,26 +63,32 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 	resp.Schema = schema.Schema{
 		Description: "Manages a Gitea organization.",
 		Attributes: map[string]schema.Attribute{
-			"rule_name": schema.StringAttribute{
-				Description: "The rule name.",
+			"branch_name": schema.StringAttribute{
+				Description: "The branch name targeted by the rule.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"owner": schema.StringAttribute{
 				Description: "The owner of the repo the rule belongs to.",
 				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"repo": schema.StringAttribute{
 				Description: "The repo that the rule belongs to.",
 				Required:    true,
-			},
-			"branch_name": schema.StringAttribute{
-				Description: "The branch name targeted by the rule.",
-				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"approvals_whitelist_username": schema.ListAttribute{
 				Description: "Whitelist of users allowed for approval.",
 				ElementType: types.StringType,
 				Computed:    true,
+				Optional:    true,
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
@@ -139,6 +145,7 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				Description: "Whitelist of users allowed to merge.",
 				ElementType: types.StringType,
 				Computed:    true,
+				Optional:    true,
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
@@ -159,6 +166,7 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				Description: "Flag indicating whether to push usernames on whitelisted users.",
 				ElementType: types.StringType,
 				Computed:    true,
+				Optional:    true,
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
@@ -213,7 +221,7 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 	res, _, err := r.client.RepositoryAPI.
 		RepoCreateBranchProtection(ctx, plan.Owner.ValueString(), plan.Repo.ValueString()).
 		Body(api.CreateBranchProtectionOption{
-			RuleName:                      plan.RuleName.ValueStringPointer(),
+			RuleName:                      plan.BranchName.ValueStringPointer(),
 			BranchName:                    plan.BranchName.ValueStringPointer(),
 			ApprovalsWhitelistUsername:    approvalWhiteList,
 			BlockOnOfficialReviewRequests: plan.BlockOnOfficialReviewRequests.ValueBoolPointer(),
@@ -236,8 +244,8 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea branch protection.",
-			fmt.Sprintf("Could not Create Gitea branch protection for '%s/%s/%s', unexpected error: %+v",
-				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.RuleName.ValueString(), err),
+			fmt.Sprintf("Could not Create Gitea branch protection for '%s/%s/%s', unexpected error: %s",
+				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), errors.GetAPIError(err)),
 		)
 
 		return
@@ -253,7 +261,6 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	plan.RuleName = types.StringValue(res.GetRuleName())
 	plan.BranchName = types.StringValue(res.GetBranchName())
 	plan.ApprovalsWhitelistUsername = tfApprovalWhiteList
 	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
@@ -285,12 +292,12 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	res, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString())
+	res, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea branch protection.",
-			fmt.Sprintf("Could not read Gitea branch protection for '%s/%s/%s', unexpected error: %+v",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString(), err),
+			fmt.Sprintf("Could not read Gitea branch protection for '%s/%s/%s', unexpected error: %s",
+				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), errors.GetAPIError(err)),
 		)
 
 		return
@@ -306,7 +313,6 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	state.RuleName = types.StringValue(res.GetRuleName())
 	state.BranchName = types.StringValue(res.GetBranchName())
 	state.ApprovalsWhitelistUsername = tfApprovalWhiteList
 	state.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
@@ -349,7 +355,7 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 	}
 
 	res, _, err := r.client.RepositoryAPI.
-		RepoEditBranchProtection(ctx, plan.Owner.ValueString(), plan.Repo.ValueString(), plan.RuleName.ValueString()).
+		RepoEditBranchProtection(ctx, plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString()).
 		Body(api.EditBranchProtectionOption{
 			ApprovalsWhitelistUsername:    approvalWhiteList,
 			BlockOnOfficialReviewRequests: plan.BlockOnOfficialReviewRequests.ValueBoolPointer(),
@@ -372,8 +378,8 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea branch protection.",
-			fmt.Sprintf("Could not Update Gitea branch protection for '%s/%s/%s', unexpected error: %+v",
-				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.RuleName.ValueString(), err),
+			fmt.Sprintf("Could not Update Gitea branch protection for '%s/%s/%s', unexpected error: %s",
+				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), errors.GetAPIError(err)),
 		)
 
 		return
@@ -389,7 +395,6 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	plan.RuleName = types.StringValue(res.GetRuleName())
 	plan.BranchName = types.StringValue(res.GetBranchName())
 	plan.ApprovalsWhitelistUsername = tfApprovalWhiteList
 	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
@@ -421,7 +426,7 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	_, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString())
+	_, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return
@@ -429,21 +434,21 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea branch protection.",
-			fmt.Sprintf("Could not check if branch protection exists for '%s/%s/%s', unexpected error: %+v",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString(), err),
+			fmt.Sprintf("Could not check if branch protection exists for '%s/%s/%s', unexpected error: %s",
+				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), errors.GetAPIError(err)),
 		)
 
 		return
 	}
 
 	_, err = r.client.RepositoryAPI.
-		RepoDeleteBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString()).
+		RepoDeleteBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString()).
 		Execute()
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea branch protection.",
-			fmt.Sprintf("Could not Delete Gitea branch protection for '%s/%s/%s', unexpected error: %+v",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString(), err),
+			fmt.Sprintf("Could not Delete Gitea branch protection for '%s/%s/%s', unexpected error: %s",
+				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), errors.GetAPIError(err)),
 		)
 
 		return
@@ -455,7 +460,7 @@ func (r *branchProtectionResource) ImportState(ctx context.Context, req resource
 	if len(ids) != 3 {
 		resp.Diagnostics.AddError(
 			"Error Importing Gitea branch protection.",
-			"Must provide import id in the form of owner_name/repo_name/rule_name.",
+			"Must provide import id in the form of owner_name/repo_name/branch_name.",
 		)
 
 		return
@@ -463,7 +468,7 @@ func (r *branchProtectionResource) ImportState(ctx context.Context, req resource
 
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("repo"), ids[1])...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("rule_name"), ids[2])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("branch_name"), ids[2])...)
 }
 
 func (r *branchProtectionResource) getBranchProtection(ctx context.Context, owner, repo, name string) (*api.BranchProtection, error) {
