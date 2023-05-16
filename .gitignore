@@ -1,0 +1,8 @@
+.vscode
+terraform-provider-gitea_*
+**/.terraform
+**/terraform.tfstate*
+**/*.tfvars
+test/.terraform.lock.hcl
+main_debug
+test/.terraform.lock.hcl

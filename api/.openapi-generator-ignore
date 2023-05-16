@@ -1,0 +1,6 @@
+docs/
+test/
+api/
+*.sh
+go.*
+README.md

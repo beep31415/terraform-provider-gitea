@@ -1,0 +1,3 @@
+Gitea terraform provider.
+
+Implemented with terraform provider framework and openapi auto-generated client.
