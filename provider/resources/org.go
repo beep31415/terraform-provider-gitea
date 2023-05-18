@@ -2,8 +2,9 @@ package resources
 
 import (
 	"context"
+
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/adapter"
 	"terraform-provider-gitea/provider/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -138,7 +139,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea organization.",
-			"Could not create organization, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not create organization, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -170,7 +171,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea organization.",
-			"Could not read Gitea organization name "+state.Name.ValueString()+": "+errors.GetAPIErrorMessage(err),
+			"Could not read Gitea organization name "+state.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -212,7 +213,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea organization.",
-			"Could not update organization, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not update organization, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -242,13 +243,13 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 	res, err := r.getOrgByName(ctx, state.Name.ValueString())
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if adapter.IsErrorNotFound(err) {
 			return
 		}
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea organization.",
-			"Could not check the organization to delete exists, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not check the organization to delete exists, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -260,7 +261,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea organization.",
-			"Could not delete organizaton, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not delete organizaton, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return

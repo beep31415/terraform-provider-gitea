@@ -3,7 +3,7 @@ package datasources
 import (
 	"context"
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/adapter"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -104,7 +104,7 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea organization.",
-			errors.GetAPIErrorMessage(err),
+			adapter.GetAPIErrorMessage(err),
 		)
 		return
 	}

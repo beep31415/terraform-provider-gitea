@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/adapter"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -245,7 +246,7 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 		resp.Diagnostics.AddError(
 			"Error creating Gitea branch protection.",
 			fmt.Sprintf("Could not Create Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), errors.GetAPIErrorMessage(err)),
+				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), adapter.GetAPIErrorMessage(err)),
 		)
 
 		return
@@ -297,7 +298,7 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea branch protection.",
 			fmt.Sprintf("Could not read Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), errors.GetAPIErrorMessage(err)),
+				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), adapter.GetAPIErrorMessage(err)),
 		)
 
 		return
@@ -379,7 +380,7 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea branch protection.",
 			fmt.Sprintf("Could not Update Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), errors.GetAPIErrorMessage(err)),
+				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), adapter.GetAPIErrorMessage(err)),
 		)
 
 		return
@@ -428,14 +429,14 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 
 	_, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if adapter.IsErrorNotFound(err) {
 			return
 		}
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea branch protection.",
 			fmt.Sprintf("Could not check if branch protection exists for '%s/%s/%s', unexpected error: %s",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), errors.GetAPIErrorMessage(err)),
+				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), adapter.GetAPIErrorMessage(err)),
 		)
 
 		return
@@ -448,7 +449,7 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea branch protection.",
 			fmt.Sprintf("Could not Delete Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), errors.GetAPIErrorMessage(err)),
+				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), adapter.GetAPIErrorMessage(err)),
 		)
 
 		return

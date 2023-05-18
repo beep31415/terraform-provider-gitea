@@ -2,9 +2,9 @@ package datasources
 
 import (
 	"context"
-	"fmt"
+
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/adapter"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -100,51 +100,30 @@ func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	res, _, err := d.client.OrganizationAPI.
-		TeamSearch(ctx, state.Organization.ValueString()).
-		Q(state.Name.ValueString()).
-		Execute()
+	res, err := adapter.GetTeamByOrgAndName(ctx, d.client, state.Organization.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea team.",
-			errors.GetAPIErrorMessage(err),
+			adapter.GetAPIErrorMessage(err),
 		)
 
 		return
 	}
 
-	if len(res.Data) == 0 {
-		resp.Diagnostics.AddError(
-			"Unable to Read Gitea team.",
-			fmt.Sprintf("Team with name '%s' was not found.", state.Name.ValueString()),
-		)
-
-		return
-	}
-
-	if len(res.Data) > 1 {
-		resp.Diagnostics.AddError(
-			"Unable to Read Gitea team.",
-			fmt.Sprintf("Multiple teams with name '%s' were found.", state.Name.ValueString()),
-		)
-
-		return
-	}
-
-	units, diags := types.MapValueFrom(ctx, types.StringType, res.Data[0].UnitsMap)
+	units, diags := types.MapValueFrom(ctx, types.StringType, res.GetUnitsMap())
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	state = teamDataSourceModel{
-		Id:                      types.Int64PointerValue(res.Data[0].Id),
-		Name:                    types.StringPointerValue(res.Data[0].Name),
+		Id:                      types.Int64Value(res.GetId()),
+		Name:                    types.StringValue(res.GetName()),
 		Organization:            types.StringValue(state.Organization.ValueString()),
-		Permission:              types.StringPointerValue(res.Data[0].Permission),
-		Description:             types.StringPointerValue(res.Data[0].Description),
-		CanCreateOrgRepo:        types.BoolPointerValue(res.Data[0].CanCreateOrgRepo),
-		IncludesAllRepositories: types.BoolPointerValue(res.Data[0].IncludesAllRepositories),
+		Permission:              types.StringValue(res.GetPermission()),
+		Description:             types.StringValue(res.GetDescription()),
+		CanCreateOrgRepo:        types.BoolValue(res.GetCanCreateOrgRepo()),
+		IncludesAllRepositories: types.BoolValue(res.GetIncludesAllRepositories()),
 		Units:                   units,
 	}
 

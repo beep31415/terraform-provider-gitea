@@ -1,4 +1,4 @@
-package errors
+package adapter
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 	"terraform-provider-gitea/api"
 )
 
-func IsNotFound(err error) bool {
+func IsErrorNotFound(err error) bool {
 	if err == nil {
 		return false
 	}

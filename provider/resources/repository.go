@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/errors"
+	"terraform-provider-gitea/provider/adapter"
 	"terraform-provider-gitea/provider/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -313,7 +313,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not check if owner is an organization for "+owner+": "+errors.GetAPIErrorMessage(err),
+			"Could not check if owner is an organization for "+owner+": "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -342,7 +342,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not create repository, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not create repository, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -386,7 +386,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not update all repository values, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not update all repository values, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -430,7 +430,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea repository.",
-			"Could not read Gitea repository ID "+state.ID.String()+": "+errors.GetAPIErrorMessage(err),
+			"Could not read Gitea repository ID "+state.ID.String()+": "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -530,7 +530,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Gitea repository.",
-			"Could not update repository, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not update repository, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -574,13 +574,13 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 	res, err := r.getRepositoryById(ctx, state.ID.ValueInt64())
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if adapter.IsErrorNotFound(err) {
 			return
 		}
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea repository.",
-			"Could not get repository to delete, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not get repository to delete, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -592,7 +592,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea repository.",
-			"Could not delete repository, unexpected error: "+errors.GetAPIErrorMessage(err),
+			"Could not delete repository, unexpected error: "+adapter.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -653,7 +653,7 @@ func (r *repoResource) getOrgByName(ctx context.Context, name string) (*api.Orga
 		OrgGet(ctx, name).
 		Execute()
 
-	if errors.IsNotFound(err) {
+	if adapter.IsErrorNotFound(err) {
 		res = nil
 		err = nil
 	}
