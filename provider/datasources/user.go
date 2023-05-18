@@ -116,7 +116,7 @@ func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea user.",
-			errors.GetAPIError(err),
+			errors.GetAPIErrorMessage(err),
 		)
 		return
 	}

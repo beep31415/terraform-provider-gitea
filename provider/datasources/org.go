@@ -104,7 +104,7 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea organization.",
-			errors.GetAPIError(err),
+			errors.GetAPIErrorMessage(err),
 		)
 		return
 	}

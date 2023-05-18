@@ -313,7 +313,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not check if owner is an organization for "+owner+": "+errors.GetAPIError(err),
+			"Could not check if owner is an organization for "+owner+": "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -342,7 +342,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not create repository, unexpected error: "+errors.GetAPIError(err),
+			"Could not create repository, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -386,7 +386,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not update all repository values, unexpected error: "+errors.GetAPIError(err),
+			"Could not update all repository values, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -430,7 +430,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea repository.",
-			"Could not read Gitea repository ID "+state.ID.String()+": "+errors.GetAPIError(err),
+			"Could not read Gitea repository ID "+state.ID.String()+": "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -530,7 +530,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Gitea repository.",
-			"Could not update repository, unexpected error: "+errors.GetAPIError(err),
+			"Could not update repository, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -580,7 +580,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea repository.",
-			"Could not get repository to delete, unexpected error: "+errors.GetAPIError(err),
+			"Could not get repository to delete, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -592,7 +592,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea repository.",
-			"Could not delete repository, unexpected error: "+errors.GetAPIError(err),
+			"Could not delete repository, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return

@@ -293,7 +293,7 @@ func (d *repoDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea repository.",
-			errors.GetAPIError(err),
+			errors.GetAPIErrorMessage(err),
 		)
 
 		return

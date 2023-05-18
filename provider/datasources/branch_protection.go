@@ -162,7 +162,7 @@ func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.Re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea branch protection.",
-			errors.GetAPIError(err),
+			errors.GetAPIErrorMessage(err),
 		)
 
 		return

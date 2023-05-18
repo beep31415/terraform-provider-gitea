@@ -138,7 +138,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea organization.",
-			"Could not create organization, unexpected error: "+errors.GetAPIError(err),
+			"Could not create organization, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -170,7 +170,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea organization.",
-			"Could not read Gitea organization name "+state.Name.ValueString()+": "+errors.GetAPIError(err),
+			"Could not read Gitea organization name "+state.Name.ValueString()+": "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -212,7 +212,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea organization.",
-			"Could not update organization, unexpected error: "+errors.GetAPIError(err),
+			"Could not update organization, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -248,7 +248,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea organization.",
-			"Could not check the organization to delete exists, unexpected error: "+errors.GetAPIError(err),
+			"Could not check the organization to delete exists, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -260,7 +260,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea organization.",
-			"Could not delete organizaton, unexpected error: "+errors.GetAPIError(err),
+			"Could not delete organizaton, unexpected error: "+errors.GetAPIErrorMessage(err),
 		)
 
 		return
