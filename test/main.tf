@@ -4,7 +4,7 @@ terraform {
   required_providers {
     gitea = {
       source  = "terraform.local/local/gitea"
-      version = "1.0.2"
+      version = "1.1.1"
     }
   }
 }
@@ -20,6 +20,6 @@ variable "token" {
 provider "gitea" {
   base_url       = var.base_url
   token          = var.token
-  debug          = false
+  debug          = true
   debug_log_path = "/mnt/d/trace.txt"
 }

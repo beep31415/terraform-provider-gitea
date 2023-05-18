@@ -215,6 +215,7 @@ func (p *giteaProvider) DataSources(_ context.Context) []func() datasource.DataS
 		datasources.NewUserDataSource,
 		datasources.NewRepoDataSource,
 		datasources.NewBranchProtectionDataSource,
+		datasources.NewTeamDataSource,
 	}
 }
 
