@@ -8,6 +8,8 @@ import (
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/provider/adapter"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -17,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -93,6 +96,12 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
+				},
 			},
 			"block_on_official_review_requests": schema.BoolAttribute{
 				Description: "Flag indicating whether pull request blocks on official review requests. Defaults to `false`.",
@@ -150,6 +159,12 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
 				},
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
+				},
 			},
 			"protected_file_patterns": schema.StringAttribute{
 				Description: "File pattern of protected files. Defaults to `\"\"`.",
@@ -170,6 +185,12 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				Optional:    true,
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
 				},
 			},
 			"require_signed_commits": schema.BoolAttribute{
@@ -252,6 +273,21 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
+	plan.BranchName = types.StringValue(res.GetBranchName())
+	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
+	plan.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
+	plan.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
+	plan.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
+	plan.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
+	plan.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
+	plan.EnablePush = types.BoolValue(res.GetEnablePush())
+	plan.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
+	plan.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
+	plan.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
+	plan.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
+	plan.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
+	plan.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
+
 	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
 	resp.Diagnostics.Append(diags...)
 	tfMergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
@@ -261,24 +297,9 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	plan.BranchName = types.StringValue(res.GetBranchName())
 	plan.ApprovalsWhitelistUsername = tfApprovalWhiteList
-	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
-	plan.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
-	plan.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
-	plan.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
-	plan.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
-	plan.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
-	plan.EnablePush = types.BoolValue(res.GetEnablePush())
-	plan.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
 	plan.MergeWhitelistUsernames = tfMergeWhiteList
-	plan.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
-	plan.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
 	plan.PushWhitelistUsernames = tfPushWhiteList
-	plan.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
-	plan.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
-	plan.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -304,6 +325,21 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
+	state.BranchName = types.StringValue(res.GetBranchName())
+	state.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
+	state.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
+	state.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
+	state.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
+	state.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
+	state.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
+	state.EnablePush = types.BoolValue(res.GetEnablePush())
+	state.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
+	state.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
+	state.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
+	state.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
+	state.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
+	state.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
+
 	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
 	resp.Diagnostics.Append(diags...)
 	tfMergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
@@ -313,24 +349,9 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	state.BranchName = types.StringValue(res.GetBranchName())
 	state.ApprovalsWhitelistUsername = tfApprovalWhiteList
-	state.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
-	state.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
-	state.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
-	state.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
-	state.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
-	state.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
-	state.EnablePush = types.BoolValue(res.GetEnablePush())
-	state.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
 	state.MergeWhitelistUsernames = tfMergeWhiteList
-	state.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
-	state.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
 	state.PushWhitelistUsernames = tfPushWhiteList
-	state.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
-	state.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
-	state.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -386,6 +407,21 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
+	plan.BranchName = types.StringValue(res.GetBranchName())
+	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
+	plan.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
+	plan.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
+	plan.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
+	plan.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
+	plan.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
+	plan.EnablePush = types.BoolValue(res.GetEnablePush())
+	plan.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
+	plan.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
+	plan.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
+	plan.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
+	plan.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
+	plan.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
+
 	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
 	resp.Diagnostics.Append(diags...)
 	tfMergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
@@ -395,24 +431,9 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	plan.BranchName = types.StringValue(res.GetBranchName())
 	plan.ApprovalsWhitelistUsername = tfApprovalWhiteList
-	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
-	plan.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
-	plan.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
-	plan.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
-	plan.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
-	plan.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
-	plan.EnablePush = types.BoolValue(res.GetEnablePush())
-	plan.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
 	plan.MergeWhitelistUsernames = tfMergeWhiteList
-	plan.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
-	plan.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
 	plan.PushWhitelistUsernames = tfPushWhiteList
-	plan.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
-	plan.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
-	plan.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {

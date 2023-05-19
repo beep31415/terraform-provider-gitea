@@ -25,6 +25,7 @@ Manages a Gitea team.
 - `can_create_org_repo` (Boolean) Flag that indicates whether team can create organization repos. Defaults to `false`.
 - `description` (String) The team description
 - `includes_all_repositories` (Boolean) Flag indicating whether team has access to all repos. Defaults to `false`.
+- `members` (List of String) Team members.
 - `permission` (String) Sets permission for team members. Defaults to `none`.
 
 ### Read-Only

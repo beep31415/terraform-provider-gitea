@@ -8,12 +8,14 @@ import (
 	"terraform-provider-gitea/provider/adapter"
 	"terraform-provider-gitea/provider/plans"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -41,6 +43,7 @@ type teamResourceModel struct {
 	Description             types.String `tfsdk:"description"`
 	CanCreateOrgRepo        types.Bool   `tfsdk:"can_create_org_repo"`
 	IncludesAllRepositories types.Bool   `tfsdk:"includes_all_repositories"`
+	Members                 types.List   `tfsdk:"members"`
 }
 
 func NewTeamResource() resource.Resource {
@@ -100,6 +103,21 @@ func (d *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:    true,
 				Default:     booldefault.StaticBool(false),
 			},
+			"members": schema.ListAttribute{
+				Description: "Team members.",
+				ElementType: types.StringType,
+				Computed:    true,
+				Optional:    true,
+				PlanModifiers: []planmodifier.List{
+					listplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
+				},
+			},
 		},
 	}
 }
@@ -117,6 +135,15 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	var memberList []string
+	resp.Diagnostics.Append(plan.Members.ElementsAs(ctx, &memberList, true)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if memberList == nil {
+		memberList = []string{}
 	}
 
 	res, _, err := r.client.OrganizationAPI.
@@ -144,6 +171,25 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.Description = types.StringValue(res.GetDescription())
 	plan.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
 	plan.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
+
+	for _, user := range memberList {
+		err := r.addTeamMember(ctx, res.GetId(), user)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error creating Gitea team.",
+				"Could not add team member: "+user,
+			)
+
+			return
+		}
+	}
+
+	tfMembersList, diags := types.ListValueFrom(ctx, types.StringType, memberList)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	plan.Members = tfMembersList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -175,6 +221,23 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
 	state.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
 
+	memberList, err := r.getTeamMembers(ctx, res.GetId())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Gitea team.",
+			"Could not read Gitea team members for team "+state.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
+		)
+
+		return
+	}
+
+	tfMembersList, diags := types.ListValueFrom(ctx, types.StringType, memberList)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.Members = tfMembersList
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -186,6 +249,15 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	var updatedMemberList []string
+	resp.Diagnostics.Append(plan.Members.ElementsAs(ctx, &updatedMemberList, true)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if updatedMemberList == nil {
+		updatedMemberList = []string{}
 	}
 
 	res, _, err := r.client.OrganizationAPI.
@@ -215,6 +287,51 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	plan.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
 	plan.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
 
+	existingMemberList, err := r.getTeamMembers(ctx, res.GetId())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Updating Gitea team.",
+			"Could not read current Gitea team members for team "+plan.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
+		)
+
+		return
+	}
+
+	for _, member := range existingMemberList {
+		if !r.contains(member, updatedMemberList...) {
+			err = r.removeTeamMember(ctx, res.GetId(), member)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Updating Gitea team.",
+					"Could not remove team member "+member+", unexpected error: "+adapter.GetAPIErrorMessage(err),
+				)
+
+				return
+			}
+		}
+	}
+
+	for _, member := range updatedMemberList {
+		if !r.contains(member, existingMemberList...) {
+			err = r.addTeamMember(ctx, res.GetId(), member)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Updating Gitea team.",
+					"Could not add team member "+member+", unexpected error: "+adapter.GetAPIErrorMessage(err),
+				)
+
+				return
+			}
+		}
+	}
+
+	tfMembersList, diags := types.ListValueFrom(ctx, types.StringType, updatedMemberList)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	plan.Members = tfMembersList
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -240,6 +357,24 @@ func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		)
 
 		return
+	}
+
+	var memberList []string
+	resp.Diagnostics.Append(state.Members.ElementsAs(ctx, &memberList, true)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for _, member := range memberList {
+		err = r.removeTeamMember(ctx, state.Id.ValueInt64(), member)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Deleting Gitea team.",
+				"Could not delete team member: "+member+", unexpected error: "+adapter.GetAPIErrorMessage(err),
+			)
+
+			return
+		}
 	}
 
 	_, err = r.client.OrganizationAPI.
@@ -276,4 +411,46 @@ func (r *teamResource) getTeamById(ctx context.Context, id int64) (*api.Team, er
 		Execute()
 
 	return res, err
+}
+
+func (r *teamResource) getTeamMembers(ctx context.Context, id int64) ([]string, error) {
+	res, _, err := r.client.OrganizationAPI.
+		OrgListTeamMembers(ctx, id).
+		Execute()
+	if err != nil {
+		return []string{}, err
+	}
+
+	users := []string{}
+	for _, resUser := range res {
+		users = append(users, resUser.GetLogin())
+	}
+
+	return users, err
+}
+
+func (r *teamResource) addTeamMember(ctx context.Context, id int64, user string) error {
+	_, err := r.client.OrganizationAPI.
+		OrgAddTeamMember(ctx, id, user).
+		Execute()
+
+	return err
+}
+
+func (r *teamResource) removeTeamMember(ctx context.Context, id int64, user string) error {
+	_, err := r.client.OrganizationAPI.
+		OrgRemoveTeamMember(ctx, id, user).
+		Execute()
+
+	return err
+}
+
+func (r *teamResource) contains(item string, list ...string) bool {
+	for _, i := range list {
+		if i == item {
+			return true
+		}
+	}
+
+	return false
 }
