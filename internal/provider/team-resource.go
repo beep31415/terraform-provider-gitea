@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/plans"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -30,8 +30,8 @@ var (
 )
 
 type teamResource struct {
-	client      *api.APIClient
-	teamAdapter *adapters.TeamAdapter
+	client *api.APIClient
+	proxy  *proxy.TeamProxy
 }
 
 func NewTeamResource() resource.Resource {
@@ -40,6 +40,94 @@ func NewTeamResource() resource.Resource {
 
 func (r *teamResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_team"
+}
+
+func (r *teamResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	r.client = req.ProviderData.(*api.APIClient)
+	r.proxy = proxy.NewTeamProxy(r.client)
+}
+
+func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan models.TeamResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Create(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state models.TeamResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan models.TeamResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state models.TeamResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, state)...)
+}
+
+func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	ids := strings.Split(req.ID, "/")
+	if len(ids) != 2 {
+		resp.Diagnostics.AddError(
+			"Error Importing Gitea team.",
+			"Must provide import id in the form of org_name/team_name.",
+		)
+
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("organization"), ids[0])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), ids[1])...)
 }
 
 func (d *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -108,149 +196,4 @@ func (d *teamResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 		},
 	}
-}
-
-func (r *teamResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	r.client = req.ProviderData.(*api.APIClient)
-	r.teamAdapter = adapters.NewTeamAdapter(r.client)
-}
-
-func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan models.TeamResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	addTeamOptions, diags := plan.ToApiAddTeamOptions(ctx)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.teamAdapter.Create(ctx, addTeamOptions)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating Gitea team.",
-			"Could not create team, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	diagsRead := plan.ReadFromApi(ctx, res)
-	resp.Diagnostics.Append(diagsRead...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state models.TeamResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.teamAdapter.GetByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Gitea team.",
-			"Could not read Gitea team name "+state.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	diags := state.ReadFromApi(ctx, res)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan models.TeamResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	editTeamOptions, diags := plan.ToApiEditTeamOptions(ctx)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.teamAdapter.Edit(ctx, editTeamOptions)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Gitea team.",
-			"Could not update team, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	diagsRead := plan.ReadFromApi(ctx, res)
-	resp.Diagnostics.Append(diagsRead...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state models.TeamResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	err := r.teamAdapter.Delete(ctx, state.Id.ValueInt64())
-	if err != nil {
-		if adapters.IsErrorNotFound(err) {
-			return
-		}
-
-		resp.Diagnostics.AddError(
-			"Error Delete Gitea team.",
-			"Could not delete team, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-}
-
-func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	ids := strings.Split(req.ID, "/")
-	if len(ids) != 2 {
-		resp.Diagnostics.AddError(
-			"Error Importing Gitea team.",
-			"Must provide import id in the form of org_name/team_name.",
-		)
-
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("organization"), ids[0])...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), ids[1])...)
 }

@@ -3,10 +3,10 @@ package provider
 import (
 	"context"
 
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/plans"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -26,8 +26,8 @@ var (
 )
 
 type orgResource struct {
-	client              *api.APIClient
-	organizationAdapter *adapters.OrganizationAdapter
+	client *api.APIClient
+	proxy  *proxy.OrganizationProxy
 }
 
 func NewOrgResource() resource.Resource {
@@ -36,6 +36,83 @@ func NewOrgResource() resource.Resource {
 
 func (r *orgResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_org"
+}
+
+func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	r.client = req.ProviderData.(*api.APIClient)
+	r.proxy = proxy.NewOrganizationProxy(r.client)
+}
+
+func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan models.OrganizationResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Create(ctx, plan))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state models.OrganizationResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan models.OrganizationResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state models.OrganizationResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, state))
+}
+
+func (r *orgResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), req.ID)...)
 }
 
 func (d *orgResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -97,110 +174,4 @@ func (d *orgResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			},
 		},
 	}
-}
-
-func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	r.client = req.ProviderData.(*api.APIClient)
-	r.organizationAdapter = adapters.NewOrganizationAdapter(r.client)
-}
-
-func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan models.OrganizationResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.organizationAdapter.Create(ctx, plan.ToApiAddOrganizationOptions())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating Gitea organization.",
-			"Could not create organization, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	plan.ReadFromApi(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state models.OrganizationResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.organizationAdapter.GetByName(ctx, state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Gitea organization.",
-			"Could not read Gitea organization name "+state.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	state.ReadFromApi(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan models.OrganizationResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.organizationAdapter.Edit(ctx, plan.ToApiEditOrganizationOptions())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Gitea organization.",
-			"Could not update organization, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	plan.ReadFromApi(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state models.OrganizationResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	err := r.organizationAdapter.Delete(ctx, state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Gitea organization.",
-			"Could not delete organizaton, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-}
-
-func (r *orgResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), req.ID)...)
 }

@@ -2,12 +2,11 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -31,8 +30,8 @@ var (
 )
 
 type branchProtectionResource struct {
-	client                  *api.APIClient
-	branchProtectionAdapter adapters.BranchProtectionAdapter
+	client *api.APIClient
+	proxy  *proxy.BranchProtectionProxy
 }
 
 func NewBranchProtectionResource() resource.Resource {
@@ -41,6 +40,95 @@ func NewBranchProtectionResource() resource.Resource {
 
 func (r *branchProtectionResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_branch_protection"
+}
+
+func (r *branchProtectionResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	r.client = req.ProviderData.(*api.APIClient)
+	r.proxy = proxy.NewBranchProtectionProxy(r.client)
+}
+
+func (r *branchProtectionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan models.BranchProtectionResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Create(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state models.BranchProtectionResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *branchProtectionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan models.BranchProtectionResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *branchProtectionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state models.BranchProtectionResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, state))
+}
+
+func (r *branchProtectionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	ids := strings.Split(req.ID, "/")
+	if len(ids) != 3 {
+		resp.Diagnostics.AddError(
+			"Error Importing Gitea branch protection.",
+			"Must provide import id in the form of owner_name/repo_name/branch_name.",
+		)
+
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("repo"), ids[1])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("branch_name"), ids[2])...)
 }
 
 func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -193,152 +281,4 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 			},
 		},
 	}
-}
-
-func (r *branchProtectionResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	r.client = req.ProviderData.(*api.APIClient)
-	r.branchProtectionAdapter = *adapters.NewBranchProtectionAdapter(r.client)
-}
-
-func (r *branchProtectionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan models.BranchProtectionResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	addBranchProtectionOptions, diags := plan.ToApiAddBranchProtectionOptions(ctx)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.branchProtectionAdapter.Create(ctx, addBranchProtectionOptions)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating Gitea branch protection.",
-			fmt.Sprintf("Could not Create Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), adapters.GetAPIErrorMessage(err)),
-		)
-
-		return
-	}
-
-	diags = plan.ReadFromApi(ctx, res)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state models.BranchProtectionResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.branchProtectionAdapter.GetByOwnerRepoAndBranchName(ctx,
-		state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Gitea branch protection.",
-			fmt.Sprintf("Could not read Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), adapters.GetAPIErrorMessage(err)),
-		)
-
-		return
-	}
-
-	diags := state.ReadFromApi(ctx, res)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *branchProtectionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan models.BranchProtectionResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	editBranchProtectionOptions, diags := plan.ToApiEditBranchProtectionOptions(ctx)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.branchProtectionAdapter.Edit(ctx, editBranchProtectionOptions)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Updating Gitea branch protection.",
-			fmt.Sprintf("Could not Update Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString(), adapters.GetAPIErrorMessage(err)),
-		)
-
-		return
-	}
-
-	diags = plan.ReadFromApi(ctx, res)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *branchProtectionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state models.BranchProtectionResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	err := r.branchProtectionAdapter.Delete(ctx,
-		state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Gitea branch protection.",
-			fmt.Sprintf("Could not Delete Gitea branch protection for '%s/%s/%s', unexpected error: %s",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), adapters.GetAPIErrorMessage(err)),
-		)
-
-		return
-	}
-}
-
-func (r *branchProtectionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	ids := strings.Split(req.ID, "/")
-	if len(ids) != 3 {
-		resp.Diagnostics.AddError(
-			"Error Importing Gitea branch protection.",
-			"Must provide import id in the form of owner_name/repo_name/branch_name.",
-		)
-
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("repo"), ids[1])...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("branch_name"), ids[2])...)
 }

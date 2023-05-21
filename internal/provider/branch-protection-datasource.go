@@ -3,13 +3,12 @@ package provider
 import (
 	"context"
 
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -19,8 +18,8 @@ var (
 )
 
 type branchProtectionDataSource struct {
-	client                  *api.APIClient
-	branchProtectionAdapter adapters.BranchProtectionAdapter
+	client *api.APIClient
+	proxy  *proxy.BranchProtectionProxy
 }
 
 func NewBranchProtectionDataSource() datasource.DataSource {
@@ -29,6 +28,33 @@ func NewBranchProtectionDataSource() datasource.DataSource {
 
 func (d *branchProtectionDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_branch_protection"
+}
+
+func (d *branchProtectionDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	d.client = req.ProviderData.(*api.APIClient)
+	d.proxy = proxy.NewBranchProtectionProxy(d.client)
+}
+
+func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state models.BranchProtectionDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -115,45 +141,5 @@ func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.Sche
 				Computed:    true,
 			},
 		},
-	}
-}
-
-func (d *branchProtectionDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	d.client = req.ProviderData.(*api.APIClient)
-	d.branchProtectionAdapter = *adapters.NewBranchProtectionAdapter(d.client)
-}
-
-func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state models.BranchProtectionDataSourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := d.branchProtectionAdapter.GetByOwnerRepoAndBranchName(ctx,
-		state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read Gitea branch protection.",
-			adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	var diags diag.Diagnostics
-	state, diags = models.NewBranchProtectionDataSource(ctx, res)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
 	}
 }

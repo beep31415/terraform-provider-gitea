@@ -1,8 +1,6 @@
 package models
 
 import (
-	"terraform-provider-gitea/api"
-
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -53,55 +51,4 @@ type RepositoryDataSourceModel struct {
 	Updated                       types.String `tfsdk:"updated_at"`
 	Watchers                      types.Int64  `tfsdk:"watchers_count"`
 	Website                       types.String `tfsdk:"website"`
-}
-
-func NewRepositoryDataSource(repository *api.Repository) RepositoryDataSourceModel {
-	return RepositoryDataSourceModel{
-		ID:                            types.Int64Value(repository.GetId()),
-		Owner:                         types.StringValue(*repository.GetOwner().Login),
-		Name:                          types.StringValue(repository.GetName()),
-		AllowMerge:                    types.BoolValue(repository.GetAllowMergeCommits()),
-		AllowRebase:                   types.BoolValue(repository.GetAllowRebase()),
-		AllowRebaseMerge:              types.BoolValue(repository.GetAllowRebaseExplicit()),
-		AllowRebaseUpdate:             types.BoolValue(repository.GetAllowRebaseUpdate()),
-		AllowSquash:                   types.BoolValue(repository.GetAllowSquashMerge()),
-		Archived:                      types.BoolValue(repository.GetArchived()),
-		AvatarURL:                     types.StringValue(repository.GetAvatarUrl()),
-		CloneURL:                      types.StringValue(repository.GetCloneUrl()),
-		Created:                       types.StringValue(repository.GetCreatedAt().String()),
-		DefaultAllowMaintainerEdit:    types.BoolValue(repository.GetDefaultAllowMaintainerEdit()),
-		DefaultBranch:                 types.StringValue(repository.GetDefaultBranch()),
-		DefaultDeleteBranchAfterMerge: types.BoolValue(repository.GetDefaultDeleteBranchAfterMerge()),
-		DefaultMergeStyle:             types.StringValue(repository.GetDefaultMergeStyle()),
-		Description:                   types.StringValue(repository.GetDescription()),
-		Empty:                         types.BoolValue(repository.GetEmpty()),
-		Fork:                          types.BoolValue(repository.GetFork()),
-		Forks:                         types.Int64Value(repository.GetForksCount()),
-		FullName:                      types.StringValue(repository.GetFullName()),
-		HTMLURL:                       types.StringValue(repository.GetHtmlUrl()),
-		HasIssues:                     types.BoolValue(repository.GetHasIssues()),
-		HasProjects:                   types.BoolValue(repository.GetHasProjects()),
-		HasPullRequests:               types.BoolValue(repository.GetHasPullRequests()),
-		HasWiki:                       types.BoolValue(repository.GetHasWiki()),
-		IgnoreWhitespaceConflicts:     types.BoolValue(repository.GetIgnoreWhitespaceConflicts()),
-		Internal:                      types.BoolValue(repository.GetInternal()),
-		Language:                      types.StringValue(repository.GetLanguage()),
-		LanguagesURL:                  types.StringValue(repository.GetLanguagesUrl()),
-		Link:                          types.StringValue(repository.GetLink()),
-		Mirror:                        types.BoolValue(repository.GetMirror()),
-		MirrorInterval:                types.StringValue(repository.GetMirrorInterval()),
-		MirrorUpdated:                 types.StringValue(repository.GetMirrorUpdated().String()),
-		OpenIssues:                    types.Int64Value(repository.GetOpenIssuesCount()),
-		OpenPulls:                     types.Int64Value(repository.GetOpenPrCounter()),
-		OriginalURL:                   types.StringValue(repository.GetOriginalUrl()),
-		Private:                       types.BoolValue(repository.GetPrivate()),
-		Releases:                      types.Int64Value(repository.GetReleaseCounter()),
-		SSHURL:                        types.StringValue(repository.GetSshUrl()),
-		Size:                          types.Int64Value(repository.GetSize()),
-		Stars:                         types.Int64Value(repository.GetStarsCount()),
-		Template:                      types.BoolValue(repository.GetTemplate()),
-		Updated:                       types.StringValue(repository.GetUpdatedAt().String()),
-		Watchers:                      types.Int64Value(repository.GetWatchersCount()),
-		Website:                       types.StringValue(repository.GetWebsite()),
-	}
 }

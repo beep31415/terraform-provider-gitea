@@ -26,8 +26,8 @@ fmt:
 	@gofmt -w -s .
 
 gen-api:
-	@rm -fr ./api/*
-	@docker run -u ${CURRENT_USER}:${CURRENT_USER} --rm -v "${PWD}/api:/local" openapitools/openapi-generator-cli generate \
+	@rm -fr ./internal/proxy/api/*
+	@docker run -u ${CURRENT_USER}:${CURRENT_USER} --rm -v "${PWD}/internal/proxy/api:/local" openapitools/openapi-generator-cli generate \
 		--additional-properties packageName=api \
 		--additional-properties structPrefix=true \
 		-i https://gitea.com/swagger.v1.json \

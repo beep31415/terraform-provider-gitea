@@ -3,10 +3,11 @@ package provider
 import (
 	"context"
 	"strings"
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
+
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/plans"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -26,8 +27,8 @@ var (
 )
 
 type repoResource struct {
-	client            *api.APIClient
-	repositoryAdapter *adapters.RepositoryAdapter
+	client *api.APIClient
+	proxy  *proxy.RepositoryProxy
 }
 
 func NewRepoResource() resource.Resource {
@@ -36,6 +37,94 @@ func NewRepoResource() resource.Resource {
 
 func (r *repoResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_repo"
+}
+
+func (r *repoResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	r.client = req.ProviderData.(*api.APIClient)
+	r.proxy = proxy.NewRepositoryProxy(r.client)
+}
+
+func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan models.RepositoryResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Create(ctx, plan))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state models.RepositoryResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan models.RepositoryResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+}
+
+func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state models.RepositoryResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, state))
+}
+
+func (r *repoResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	ids := strings.Split(req.ID, "/")
+	if len(ids) != 2 {
+		resp.Diagnostics.AddError(
+			"Error Importing Gitea repository.",
+			"Must provide import id in the form of owner_name/repo_name.",
+		)
+
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), ids[1])...)
 }
 
 func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -257,121 +346,4 @@ func (d *repoResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 		},
 	}
-}
-
-func (r *repoResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	r.client = req.ProviderData.(*api.APIClient)
-	r.repositoryAdapter = adapters.NewRepositorydapter(r.client)
-}
-
-func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan models.RepositoryResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.repositoryAdapter.Create(ctx, plan.ToApiRepositoryOptions())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating Gitea repository.",
-			"Could not create repository, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	plan.ReadFromApi(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state models.RepositoryResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.repositoryAdapter.GetByOwnerAndName(ctx, state.Owner.ValueString(), state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Gitea repository.",
-			"Could not read Gitea repository ID "+state.ID.String()+": "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	state.ReadFromApi(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan models.RepositoryResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := r.repositoryAdapter.Edit(ctx, plan.ToApiRepositoryOptions())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error updating Gitea repository.",
-			"Could not update repository, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	plan.ReadFromApi(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-}
-
-func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state models.RepositoryResourceModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	err := r.repositoryAdapter.Delete(ctx, state.ID.ValueInt64())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Deleting Gitea repository.",
-			"Could not delete repository, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-}
-
-func (r *repoResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	ids := strings.Split(req.ID, "/")
-	if len(ids) != 2 {
-		resp.Diagnostics.AddError(
-			"Error Importing Gitea repository.",
-			"Must provide import id in the form of owner_name/repo_name.",
-		)
-
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), ids[1])...)
 }

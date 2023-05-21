@@ -3,9 +3,9 @@ package provider
 import (
 	"context"
 
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -17,8 +17,8 @@ var (
 )
 
 type userDataSource struct {
-	client      *api.APIClient
-	userAdapter adapters.UserAdapter
+	client *api.APIClient
+	proxy  proxy.UserProxy
 }
 
 func NewUserDataSource() datasource.DataSource {
@@ -27,6 +27,33 @@ func NewUserDataSource() datasource.DataSource {
 
 func (d *userDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_user"
+}
+
+func (d *userDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	d.client = req.ProviderData.(*api.APIClient)
+	d.proxy = *proxy.NewUserProxy(d.client)
+}
+
+func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state models.UserDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state))
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (d *userDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -78,38 +105,5 @@ func (d *userDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Computed:    true,
 			},
 		},
-	}
-}
-
-func (d *userDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	d.client = req.ProviderData.(*api.APIClient)
-	d.userAdapter = *adapters.NewUserAdapter(d.client)
-}
-
-func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state models.UserDataSourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := d.userAdapter.GetByName(ctx, state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read Gitea user.",
-			adapters.GetAPIErrorMessage(err),
-		)
-		return
-	}
-
-	state = models.NewUserDataSource(res)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
 	}
 }

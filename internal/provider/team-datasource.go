@@ -3,13 +3,12 @@ package provider
 import (
 	"context"
 
-	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/proxy"
+	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -19,8 +18,8 @@ var (
 )
 
 type teamDataSource struct {
-	client      *api.APIClient
-	teamAdapter *adapters.TeamAdapter
+	client *api.APIClient
+	proxy  *proxy.TeamProxy
 }
 
 func NewTeamDataSource() datasource.DataSource {
@@ -29,6 +28,33 @@ func NewTeamDataSource() datasource.DataSource {
 
 func (d *teamDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_team"
+}
+
+func (d *teamDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	d.client = req.ProviderData.(*api.APIClient)
+	d.proxy = proxy.NewTeamProxy(d.client)
+}
+
+func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var state models.TeamDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (d *teamDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -69,44 +95,5 @@ func (d *teamDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Computed:    true,
 			},
 		},
-	}
-}
-
-func (d *teamDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	d.client = req.ProviderData.(*api.APIClient)
-	d.teamAdapter = adapters.NewTeamAdapter(d.client)
-}
-
-func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state models.TeamDataSourceModel
-	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	res, err := d.teamAdapter.GetByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read Gitea team.",
-			adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	var diags diag.Diagnostics
-	state, diags = models.NewTeamDataSource(ctx, res)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
-	if resp.Diagnostics.HasError() {
-		return
 	}
 }
