@@ -228,7 +228,6 @@ func (p *giteaProvider) Resources(_ context.Context) []func() resource.Resource 
 }
 
 func (p *giteaProvider) NewAPIClient(cfg giteaProviderModel) (*api.APIClient, error) {
-
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: cfg.Insecure.ValueBool(),
 	}
