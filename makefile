@@ -36,7 +36,7 @@ gen-api:
 	@make fmt
 
 build: 
-	@go build -ldflags "-s -w" -o terraform-provider-gitea_${VERSION} -tags release
+	@go build -ldflags "-s -w" -o terraform-provider-gitea_${VERSION} -tags release ./cmd
 
 install: build 
 	@echo installing to 

@@ -5,7 +5,7 @@ package main
 import (
 	"context"
 
-	"terraform-provider-gitea/provider"
+	"terraform-provider-gitea/internal/provider"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )

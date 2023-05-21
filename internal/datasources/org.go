@@ -3,7 +3,8 @@ package datasources
 import (
 	"context"
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/adapter"
+	"terraform-provider-gitea/internal/adapters"
+	"terraform-provider-gitea/internal/models"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -17,18 +18,6 @@ var (
 
 type orgDataSource struct {
 	client *api.APIClient
-}
-
-type orgDataSourceModel struct {
-	ID                    types.Int64  `tfsdk:"id"`
-	Name                  types.String `tfsdk:"name"`
-	FullName              types.String `tfsdk:"full_name"`
-	Description           types.String `tfsdk:"description"`
-	Website               types.String `tfsdk:"website"`
-	Location              types.String `tfsdk:"location"`
-	Visibility            types.String `tfsdk:"visibility"`
-	AdminChangeTeamAccess types.Bool   `tfsdk:"repo_admin_change_team_access"`
-	AvatarURL             types.String `tfsdk:"avatar_url"`
 }
 
 func NewOrgDataSource() datasource.DataSource {
@@ -92,7 +81,7 @@ func (d *orgDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 }
 
 func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state orgDataSourceModel
+	var state models.OrganizationDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -104,12 +93,12 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea organization.",
-			adapter.GetAPIErrorMessage(err),
+			adapters.GetAPIErrorMessage(err),
 		)
 		return
 	}
 
-	state = orgDataSourceModel{
+	state = models.OrganizationDataSourceModel{
 		ID:                    types.Int64Value(res.GetId()),
 		Name:                  types.StringValue(res.GetName()),
 		FullName:              types.StringValue(res.GetFullName()),

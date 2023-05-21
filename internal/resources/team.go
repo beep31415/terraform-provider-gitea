@@ -5,8 +5,10 @@ import (
 	"strings"
 
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/adapter"
-	"terraform-provider-gitea/provider/plans"
+	"terraform-provider-gitea/internal/adapters"
+	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/plans"
+	"terraform-provider-gitea/pkg/arrays"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -32,18 +34,8 @@ var (
 )
 
 type teamResource struct {
-	client *api.APIClient
-}
-
-type teamResourceModel struct {
-	Id                      types.Int64  `tfsdk:"id"`
-	Name                    types.String `tfsdk:"name"`
-	Organization            types.String `tfsdk:"organization"`
-	Permission              types.String `tfsdk:"permission"`
-	Description             types.String `tfsdk:"description"`
-	CanCreateOrgRepo        types.Bool   `tfsdk:"can_create_org_repo"`
-	IncludesAllRepositories types.Bool   `tfsdk:"includes_all_repositories"`
-	Members                 types.List   `tfsdk:"members"`
+	client      *api.APIClient
+	teamAdapter *adapters.TeamAdapter
 }
 
 func NewTeamResource() resource.Resource {
@@ -128,10 +120,11 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 	}
 
 	r.client = req.ProviderData.(*api.APIClient)
+	r.teamAdapter = adapters.NewTeamAdapter(r.client)
 }
 
 func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan teamResourceModel
+	var plan models.TeamResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -160,7 +153,7 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea team.",
-			"Could not create team, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not create team, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -173,7 +166,7 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
 
 	for _, user := range memberList {
-		err := r.addTeamMember(ctx, res.GetId(), user)
+		err := r.teamAdapter.AddTeamMember(ctx, res.GetId(), user)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error creating Gitea team.",
@@ -198,17 +191,17 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 }
 
 func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state teamResourceModel
+	var state models.TeamResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, err := adapter.GetTeamByOrgAndName(ctx, r.client, state.Organization.ValueString(), state.Name.ValueString())
+	res, err := r.teamAdapter.GetTeamByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea team.",
-			"Could not read Gitea team name "+state.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
+			"Could not read Gitea team name "+state.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -221,11 +214,11 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
 	state.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
 
-	memberList, err := r.getTeamMembers(ctx, res.GetId())
+	memberList, err := r.teamAdapter.GetTeamMembers(ctx, res.GetId())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea team.",
-			"Could not read Gitea team members for team "+state.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
+			"Could not read Gitea team members for team "+state.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -245,7 +238,7 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 }
 
 func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan teamResourceModel
+	var plan models.TeamResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -274,7 +267,7 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea team.",
-			"Could not update team, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not update team, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -287,23 +280,23 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	plan.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
 	plan.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
 
-	existingMemberList, err := r.getTeamMembers(ctx, res.GetId())
+	existingMemberList, err := r.teamAdapter.GetTeamMembers(ctx, res.GetId())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea team.",
-			"Could not read current Gitea team members for team "+plan.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
+			"Could not read current Gitea team members for team "+plan.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
 	}
 
 	for _, member := range existingMemberList {
-		if !r.contains(member, updatedMemberList...) {
-			err = r.removeTeamMember(ctx, res.GetId(), member)
+		if !arrays.Contains(member, updatedMemberList...) {
+			err = r.teamAdapter.RemoveTeamMember(ctx, res.GetId(), member)
 			if err != nil {
 				resp.Diagnostics.AddError(
 					"Error Updating Gitea team.",
-					"Could not remove team member "+member+", unexpected error: "+adapter.GetAPIErrorMessage(err),
+					"Could not remove team member "+member+", unexpected error: "+adapters.GetAPIErrorMessage(err),
 				)
 
 				return
@@ -312,12 +305,12 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	for _, member := range updatedMemberList {
-		if !r.contains(member, existingMemberList...) {
-			err = r.addTeamMember(ctx, res.GetId(), member)
+		if !arrays.Contains(member, existingMemberList...) {
+			err = r.teamAdapter.AddTeamMember(ctx, res.GetId(), member)
 			if err != nil {
 				resp.Diagnostics.AddError(
 					"Error Updating Gitea team.",
-					"Could not add team member "+member+", unexpected error: "+adapter.GetAPIErrorMessage(err),
+					"Could not add team member "+member+", unexpected error: "+adapters.GetAPIErrorMessage(err),
 				)
 
 				return
@@ -339,21 +332,21 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 }
 
 func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state teamResourceModel
+	var state models.TeamResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, err := r.getTeamById(ctx, state.Id.ValueInt64())
+	res, err := r.teamAdapter.GetTeamById(ctx, state.Id.ValueInt64())
 	if err != nil {
-		if adapter.IsErrorNotFound(err) {
+		if adapters.IsErrorNotFound(err) {
 			return
 		}
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea team.",
-			"Could not check if team to delete exists, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not check if team to delete exists, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -366,24 +359,22 @@ func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	for _, member := range memberList {
-		err = r.removeTeamMember(ctx, state.Id.ValueInt64(), member)
+		err = r.teamAdapter.RemoveTeamMember(ctx, state.Id.ValueInt64(), member)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error Deleting Gitea team.",
-				"Could not delete team member: "+member+", unexpected error: "+adapter.GetAPIErrorMessage(err),
+				"Could not delete team member: "+member+", unexpected error: "+adapters.GetAPIErrorMessage(err),
 			)
 
 			return
 		}
 	}
 
-	_, err = r.client.OrganizationAPI.
-		OrgDeleteTeam(ctx, *res.Id).
-		Execute()
+	err = r.teamAdapter.DeleteTeam(ctx, res.GetId())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea team.",
-			"Could not delete team, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not delete team, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -403,54 +394,4 @@ func (r *teamResource) ImportState(ctx context.Context, req resource.ImportState
 
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("organization"), ids[0])...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), ids[1])...)
-}
-
-func (r *teamResource) getTeamById(ctx context.Context, id int64) (*api.Team, error) {
-	res, _, err := r.client.OrganizationAPI.
-		OrgGetTeam(ctx, id).
-		Execute()
-
-	return res, err
-}
-
-func (r *teamResource) getTeamMembers(ctx context.Context, id int64) ([]string, error) {
-	res, _, err := r.client.OrganizationAPI.
-		OrgListTeamMembers(ctx, id).
-		Execute()
-	if err != nil {
-		return []string{}, err
-	}
-
-	users := []string{}
-	for _, resUser := range res {
-		users = append(users, resUser.GetLogin())
-	}
-
-	return users, err
-}
-
-func (r *teamResource) addTeamMember(ctx context.Context, id int64, user string) error {
-	_, err := r.client.OrganizationAPI.
-		OrgAddTeamMember(ctx, id, user).
-		Execute()
-
-	return err
-}
-
-func (r *teamResource) removeTeamMember(ctx context.Context, id int64, user string) error {
-	_, err := r.client.OrganizationAPI.
-		OrgRemoveTeamMember(ctx, id, user).
-		Execute()
-
-	return err
-}
-
-func (r *teamResource) contains(item string, list ...string) bool {
-	for _, i := range list {
-		if i == item {
-			return true
-		}
-	}
-
-	return false
 }

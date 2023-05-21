@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/adapter"
+	"terraform-provider-gitea/internal/adapters"
+	"terraform-provider-gitea/internal/models"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -17,18 +18,8 @@ var (
 )
 
 type teamDataSource struct {
-	client *api.APIClient
-}
-
-type teamDataSourceModel struct {
-	Id                      types.Int64  `tfsdk:"id"`
-	Name                    types.String `tfsdk:"name"`
-	Organization            types.String `tfsdk:"organization"`
-	Permission              types.String `tfsdk:"permission"`
-	Description             types.String `tfsdk:"description"`
-	CanCreateOrgRepo        types.Bool   `tfsdk:"can_create_org_repo"`
-	IncludesAllRepositories types.Bool   `tfsdk:"includes_all_repositories"`
-	Units                   types.Map    `tfsdk:"units"`
+	client      *api.APIClient
+	teamAdapter *adapters.TeamAdapter
 }
 
 type teamUnitDataSource struct {
@@ -91,20 +82,21 @@ func (d *teamDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 	}
 
 	d.client = req.ProviderData.(*api.APIClient)
+	d.teamAdapter = adapters.NewTeamAdapter(d.client)
 }
 
 func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state teamDataSourceModel
+	var state models.TeamDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, err := adapter.GetTeamByOrgAndName(ctx, d.client, state.Organization.ValueString(), state.Name.ValueString())
+	res, err := d.teamAdapter.GetTeamByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea team.",
-			adapter.GetAPIErrorMessage(err),
+			adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -116,7 +108,7 @@ func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	state = teamDataSourceModel{
+	state = models.TeamDataSourceModel{
 		Id:                      types.Int64Value(res.GetId()),
 		Name:                    types.StringValue(res.GetName()),
 		Organization:            types.StringValue(state.Organization.ValueString()),

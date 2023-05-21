@@ -4,8 +4,9 @@ import (
 	"context"
 	"strings"
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/adapter"
-	"terraform-provider-gitea/provider/plans"
+	"terraform-provider-gitea/internal/adapters"
+	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -27,40 +28,6 @@ var (
 
 type repoResource struct {
 	client *api.APIClient
-}
-
-type repoResourceModel struct {
-	ID                            types.Int64  `tfsdk:"id"`
-	Name                          types.String `tfsdk:"name"`
-	Owner                         types.String `tfsdk:"owner"`
-	AutoInit                      types.Bool   `tfsdk:"auto_init"`
-	DefaultBranch                 types.String `tfsdk:"default_branch"`
-	Description                   types.String `tfsdk:"description"`
-	Gitignores                    types.String `tfsdk:"gitignores"`
-	IssueLabels                   types.String `tfsdk:"issue_labels"`
-	License                       types.String `tfsdk:"license"`
-	Private                       types.Bool   `tfsdk:"private"`
-	Readme                        types.String `tfsdk:"readme"`
-	Template                      types.Bool   `tfsdk:"template"`
-	TrustModel                    types.String `tfsdk:"trust_model"`
-	AllowManualMerge              types.Bool   `tfsdk:"allow_manual_merge"`
-	AllowMerge                    types.Bool   `tfsdk:"allow_merge_commits"`
-	AllowRebase                   types.Bool   `tfsdk:"allow_rebase"`
-	AllowRebaseMerge              types.Bool   `tfsdk:"allow_rebase_explicit"`
-	AllowRebaseUpdate             types.Bool   `tfsdk:"allow_rebase_update"`
-	AllowSquash                   types.Bool   `tfsdk:"allow_squash_merge"`
-	Archived                      types.Bool   `tfsdk:"archived"`
-	AutodetectManualMerge         types.Bool   `tfsdk:"autodetect_manual_merge"`
-	DefaultAllowMaintainerEdit    types.Bool   `tfsdk:"default_allow_maintainer_edit"`
-	DefaultDeleteBranchAfterMerge types.Bool   `tfsdk:"default_delete_branch_after_merge"`
-	DefaultMergeStyle             types.String `tfsdk:"default_merge_style"`
-	EnablePrune                   types.Bool   `tfsdk:"enable_prune"`
-	HasIssues                     types.Bool   `tfsdk:"has_issues"`
-	HasProjects                   types.Bool   `tfsdk:"has_projects"`
-	HasPullRequests               types.Bool   `tfsdk:"has_pull_requests"`
-	HasWiki                       types.Bool   `tfsdk:"has_wiki"`
-	IgnoreWhitespaceConflicts     types.Bool   `tfsdk:"ignore_whitespace_conflicts"`
-	Website                       types.String `tfsdk:"website"`
 }
 
 func NewRepoResource() resource.Resource {
@@ -301,7 +268,7 @@ func (r *repoResource) Configure(_ context.Context, req resource.ConfigureReques
 }
 
 func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan repoResourceModel
+	var plan models.RepositoryResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -313,7 +280,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not check if owner is an organization for "+owner+": "+adapter.GetAPIErrorMessage(err),
+			"Could not check if owner is an organization for "+owner+": "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -342,7 +309,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not create repository, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not create repository, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -386,7 +353,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
-			"Could not update all repository values, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not update all repository values, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -420,7 +387,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 }
 
 func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state repoResourceModel
+	var state models.RepositoryResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -430,7 +397,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea repository.",
-			"Could not read Gitea repository ID "+state.ID.String()+": "+adapter.GetAPIErrorMessage(err),
+			"Could not read Gitea repository ID "+state.ID.String()+": "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -493,7 +460,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 }
 
 func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan repoResourceModel
+	var plan models.RepositoryResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -530,7 +497,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Gitea repository.",
-			"Could not update repository, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not update repository, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -566,7 +533,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 }
 
 func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state repoResourceModel
+	var state models.RepositoryResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -574,13 +541,13 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 
 	res, err := r.getRepositoryById(ctx, state.ID.ValueInt64())
 	if err != nil {
-		if adapter.IsErrorNotFound(err) {
+		if adapters.IsErrorNotFound(err) {
 			return
 		}
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea repository.",
-			"Could not get repository to delete, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not get repository to delete, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -592,7 +559,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea repository.",
-			"Could not delete repository, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not delete repository, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -653,7 +620,7 @@ func (r *repoResource) getOrgByName(ctx context.Context, name string) (*api.Orga
 		OrgGet(ctx, name).
 		Execute()
 
-	if adapter.IsErrorNotFound(err) {
+	if adapters.IsErrorNotFound(err) {
 		res = nil
 		err = nil
 	}

@@ -5,7 +5,8 @@ import (
 	"strings"
 
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/adapter"
+	"terraform-provider-gitea/internal/adapters"
+	"terraform-provider-gitea/internal/models"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -16,20 +17,6 @@ var (
 	_ datasource.DataSource              = &userDataSource{}
 	_ datasource.DataSourceWithConfigure = &userDataSource{}
 )
-
-type userDataSourceModel struct {
-	ID            types.Int64  `tfsdk:"id"`
-	Name          types.String `tfsdk:"username"`
-	LoginName     types.String `tfsdk:"login_name"`
-	Email         types.String `tfsdk:"email"`
-	IsAdmin       types.Bool   `tfsdk:"is_admin"`
-	IsActive      types.Bool   `tfsdk:"is_active"`
-	ProhibitLogin types.Bool   `tfsdk:"prohibit_login"`
-	Restricted    types.Bool   `tfsdk:"restricted"`
-	Visibility    types.String `tfsdk:"visibility"`
-	LastLogin     types.String `tfsdk:"last_login"`
-	Created       types.String `tfsdk:"created"`
-}
 
 type userDataSource struct {
 	client *api.APIClient
@@ -104,7 +91,7 @@ func (d *userDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 }
 
 func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var state userDataSourceModel
+	var state models.UserDataSourceModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -116,12 +103,12 @@ func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea user.",
-			adapter.GetAPIErrorMessage(err),
+			adapters.GetAPIErrorMessage(err),
 		)
 		return
 	}
 
-	state = userDataSourceModel{
+	state = models.UserDataSourceModel{
 		ID:            types.Int64Value(res.GetId()),
 		Name:          types.StringValue(res.GetLogin()),
 		LoginName:     types.StringValue(res.GetLoginName()),

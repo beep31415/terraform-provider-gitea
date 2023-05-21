@@ -4,8 +4,9 @@ import (
 	"context"
 
 	"terraform-provider-gitea/api"
-	"terraform-provider-gitea/provider/adapter"
-	"terraform-provider-gitea/provider/plans"
+	"terraform-provider-gitea/internal/adapters"
+	"terraform-provider-gitea/internal/models"
+	"terraform-provider-gitea/internal/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -27,17 +28,6 @@ var (
 
 type orgResource struct {
 	client *api.APIClient
-}
-
-type orgResourceModel struct {
-	ID                    types.Int64  `tfsdk:"id"`
-	Name                  types.String `tfsdk:"name"`
-	FullName              types.String `tfsdk:"full_name"`
-	Description           types.String `tfsdk:"description"`
-	Website               types.String `tfsdk:"website"`
-	Location              types.String `tfsdk:"location"`
-	Visibility            types.String `tfsdk:"visibility"`
-	AdminChangeTeamAccess types.Bool   `tfsdk:"repo_admin_change_team_access"`
 }
 
 func NewOrgResource() resource.Resource {
@@ -118,7 +108,7 @@ func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest
 }
 
 func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan orgResourceModel
+	var plan models.OrganizationResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -139,7 +129,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea organization.",
-			"Could not create organization, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not create organization, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -161,7 +151,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 }
 
 func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var state orgResourceModel
+	var state models.OrganizationResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -171,7 +161,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea organization.",
-			"Could not read Gitea organization name "+state.Name.ValueString()+": "+adapter.GetAPIErrorMessage(err),
+			"Could not read Gitea organization name "+state.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -193,7 +183,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 }
 
 func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan orgResourceModel
+	var plan models.OrganizationResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -213,7 +203,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea organization.",
-			"Could not update organization, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not update organization, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -235,7 +225,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 }
 
 func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state orgResourceModel
+	var state models.OrganizationResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -243,13 +233,13 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 	res, err := r.getOrgByName(ctx, state.Name.ValueString())
 	if err != nil {
-		if adapter.IsErrorNotFound(err) {
+		if adapters.IsErrorNotFound(err) {
 			return
 		}
 
 		resp.Diagnostics.AddError(
 			"Error Delete Gitea organization.",
-			"Could not check the organization to delete exists, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not check the organization to delete exists, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
@@ -261,7 +251,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea organization.",
-			"Could not delete organizaton, unexpected error: "+adapter.GetAPIErrorMessage(err),
+			"Could not delete organizaton, unexpected error: "+adapters.GetAPIErrorMessage(err),
 		)
 
 		return
