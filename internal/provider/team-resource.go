@@ -27,9 +27,6 @@ var (
 	_ resource.Resource                = &teamResource{}
 	_ resource.ResourceWithConfigure   = &teamResource{}
 	_ resource.ResourceWithImportState = &teamResource{}
-
-	allUnits = []string{"repo.code", "repo.issues", "repo.ext_issues", "repo.wiki",
-		"repo.pulls", "repo.releases", "repo.projects", "repo.ext_wiki"}
 )
 
 type teamResource struct {
@@ -129,27 +126,13 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	var memberList []string
-	resp.Diagnostics.Append(plan.Members.ElementsAs(ctx, &memberList, true)...)
+	addTeamOptions, diags := plan.ToAddTeamOptions(ctx)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if memberList == nil {
-		memberList = []string{}
-	}
 
-	res, err := r.teamAdapter.CreateTeam(ctx, adapters.AddTeamOptions{
-		Organization: plan.Organization.ValueString(),
-		AddOption: api.CreateTeamOption{
-			Name:                    plan.Name.ValueString(),
-			Permission:              plan.Permission.ValueStringPointer(),
-			Description:             plan.Description.ValueStringPointer(),
-			CanCreateOrgRepo:        plan.CanCreateOrgRepo.ValueBoolPointer(),
-			IncludesAllRepositories: plan.IncludesAllRepositories.ValueBoolPointer(),
-			Units:                   allUnits,
-		},
-		Members: memberList,
-	})
+	res, err := r.teamAdapter.CreateTeam(ctx, addTeamOptions)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea team.",
@@ -159,8 +142,8 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	diags := plan.ReadFrom(ctx, res)
-	resp.Diagnostics.Append(diags...)
+	diagsRead := plan.ReadFrom(ctx, res)
+	resp.Diagnostics.Append(diagsRead...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -207,27 +190,13 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	var updatedMemberList []string
-	resp.Diagnostics.Append(plan.Members.ElementsAs(ctx, &updatedMemberList, true)...)
+	editTeamOptions, diags := plan.ToEditTeamOptions(ctx)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if updatedMemberList == nil {
-		updatedMemberList = []string{}
-	}
 
-	res, err := r.teamAdapter.EditTeam(ctx, adapters.EditTeamOptions{
-		Id: int32(plan.Id.ValueInt64()),
-		EditOption: api.EditTeamOption{
-			Name:                    plan.Name.ValueString(),
-			Permission:              plan.Permission.ValueStringPointer(),
-			Description:             plan.Description.ValueStringPointer(),
-			CanCreateOrgRepo:        plan.CanCreateOrgRepo.ValueBoolPointer(),
-			IncludesAllRepositories: plan.IncludesAllRepositories.ValueBoolPointer(),
-			Units:                   allUnits,
-		},
-		Members: updatedMemberList,
-	})
+	res, err := r.teamAdapter.EditTeam(ctx, editTeamOptions)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea team.",
@@ -237,8 +206,8 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	diags := plan.ReadFrom(ctx, res)
-	resp.Diagnostics.Append(diags...)
+	diagsRead := plan.ReadFrom(ctx, res)
+	resp.Diagnostics.Append(diagsRead...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

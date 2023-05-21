@@ -2,10 +2,16 @@ package models
 
 import (
 	"context"
+	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/internal/adapters"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+var (
+	allUnits = []string{"repo.code", "repo.issues", "repo.ext_issues", "repo.wiki",
+		"repo.pulls", "repo.releases", "repo.projects", "repo.ext_wiki"}
 )
 
 type TeamResourceModel struct {
@@ -33,5 +39,53 @@ func (t *TeamResourceModel) ReadFrom(ctx context.Context, team *adapters.Team) d
 	}
 	t.Members = tfMembers
 
-	return nil
+	return diags
+}
+
+func (t *TeamResourceModel) ToAddTeamOptions(ctx context.Context) (adapters.AddTeamOptions, diag.Diagnostics) {
+	var memberList []string
+	diags := t.Members.ElementsAs(ctx, &memberList, true)
+	if diags.HasError() {
+		return adapters.AddTeamOptions{}, diags
+	}
+	if memberList == nil {
+		memberList = []string{}
+	}
+
+	return adapters.AddTeamOptions{
+		Organization: t.Organization.ValueString(),
+		AddOption: api.CreateTeamOption{
+			Name:                    t.Name.ValueString(),
+			Permission:              t.Permission.ValueStringPointer(),
+			Description:             t.Description.ValueStringPointer(),
+			CanCreateOrgRepo:        t.CanCreateOrgRepo.ValueBoolPointer(),
+			IncludesAllRepositories: t.IncludesAllRepositories.ValueBoolPointer(),
+			Units:                   allUnits,
+		},
+		Members: memberList,
+	}, diags
+}
+
+func (t *TeamResourceModel) ToEditTeamOptions(ctx context.Context) (adapters.EditTeamOptions, diag.Diagnostics) {
+	var memberList []string
+	diags := t.Members.ElementsAs(ctx, &memberList, true)
+	if diags.HasError() {
+		return adapters.EditTeamOptions{}, diags
+	}
+	if memberList == nil {
+		memberList = []string{}
+	}
+
+	return adapters.EditTeamOptions{
+		Id: int32(t.Id.ValueInt64()),
+		EditOption: api.EditTeamOption{
+			Name:                    t.Name.ValueString(),
+			Permission:              t.Permission.ValueStringPointer(),
+			Description:             t.Description.ValueStringPointer(),
+			CanCreateOrgRepo:        t.CanCreateOrgRepo.ValueBoolPointer(),
+			IncludesAllRepositories: t.IncludesAllRepositories.ValueBoolPointer(),
+			Units:                   allUnits,
+		},
+		Members: memberList,
+	}, diags
 }

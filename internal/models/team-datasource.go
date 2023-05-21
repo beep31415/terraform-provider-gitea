@@ -35,5 +35,5 @@ func NewTeamDataSource(ctx context.Context, team *adapters.Team) (TeamDataSource
 		CanCreateOrgRepo:        types.BoolValue(team.Team.GetCanCreateOrgRepo()),
 		IncludesAllRepositories: types.BoolValue(team.Team.GetIncludesAllRepositories()),
 		Members:                 members,
-	}, nil
+	}, diags
 }
