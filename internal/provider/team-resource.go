@@ -126,13 +126,13 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	addTeamOptions, diags := plan.ToAddTeamOptions(ctx)
+	addTeamOptions, diags := plan.ToApiAddTeamOptions(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, err := r.teamAdapter.CreateTeam(ctx, addTeamOptions)
+	res, err := r.teamAdapter.Create(ctx, addTeamOptions)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea team.",
@@ -142,7 +142,7 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	diagsRead := plan.ReadFrom(ctx, res)
+	diagsRead := plan.ReadFromApi(ctx, res)
 	resp.Diagnostics.Append(diagsRead...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -161,7 +161,7 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	res, err := r.teamAdapter.GetTeamByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
+	res, err := r.teamAdapter.GetByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea team.",
@@ -171,7 +171,7 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	diags := state.ReadFrom(ctx, res)
+	diags := state.ReadFromApi(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -190,13 +190,13 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	editTeamOptions, diags := plan.ToEditTeamOptions(ctx)
+	editTeamOptions, diags := plan.ToApiEditTeamOptions(ctx)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, err := r.teamAdapter.EditTeam(ctx, editTeamOptions)
+	res, err := r.teamAdapter.Edit(ctx, editTeamOptions)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea team.",
@@ -206,7 +206,7 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	diagsRead := plan.ReadFrom(ctx, res)
+	diagsRead := plan.ReadFromApi(ctx, res)
 	resp.Diagnostics.Append(diagsRead...)
 	if resp.Diagnostics.HasError() {
 		return
@@ -225,7 +225,7 @@ func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	err := r.teamAdapter.DeleteTeam(ctx, state.Id.ValueInt64())
+	err := r.teamAdapter.Delete(ctx, state.Id.ValueInt64())
 	if err != nil {
 		if adapters.IsErrorNotFound(err) {
 			return

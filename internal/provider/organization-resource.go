@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var (
@@ -27,7 +26,8 @@ var (
 )
 
 type orgResource struct {
-	client *api.APIClient
+	client              *api.APIClient
+	organizationAdapter *adapters.Organizationdapter
 }
 
 func NewOrgResource() resource.Resource {
@@ -105,6 +105,7 @@ func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest
 	}
 
 	r.client = req.ProviderData.(*api.APIClient)
+	r.organizationAdapter = adapters.NewOrganizationdapter(r.client)
 }
 
 func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -114,18 +115,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	res, _, err := r.client.OrganizationAPI.
-		OrgCreate(ctx).
-		Organization(api.CreateOrgOption{
-			Username:                  plan.Name.ValueString(),
-			FullName:                  plan.FullName.ValueStringPointer(),
-			Description:               plan.Description.ValueStringPointer(),
-			Website:                   plan.Website.ValueStringPointer(),
-			Location:                  plan.Location.ValueStringPointer(),
-			Visibility:                plan.Visibility.ValueStringPointer(),
-			RepoAdminChangeTeamAccess: plan.AdminChangeTeamAccess.ValueBoolPointer(),
-		}).
-		Execute()
+	res, err := r.organizationAdapter.Create(ctx, plan.ToApiAddOrganizationOptions())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea organization.",
@@ -135,14 +125,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	plan.ID = types.Int64Value(res.GetId())
-	plan.Name = types.StringValue(res.GetName())
-	plan.FullName = types.StringValue(res.GetFullName())
-	plan.Description = types.StringValue(res.GetDescription())
-	plan.Website = types.StringValue(res.GetWebsite())
-	plan.Location = types.StringValue(res.GetLocation())
-	plan.Visibility = types.StringValue(res.GetVisibility())
-	plan.AdminChangeTeamAccess = types.BoolValue(res.GetRepoAdminChangeTeamAccess())
+	plan.ReadFromApi(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -157,7 +140,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	res, err := r.getOrgByName(ctx, state.Name.ValueString())
+	res, err := r.organizationAdapter.GetByName(ctx, state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea organization.",
@@ -167,14 +150,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	state.ID = types.Int64Value(res.GetId())
-	state.Name = types.StringValue(res.GetName())
-	state.FullName = types.StringValue(res.GetFullName())
-	state.Description = types.StringValue(res.GetDescription())
-	state.Website = types.StringValue(res.GetWebsite())
-	state.Location = types.StringValue(res.GetLocation())
-	state.Visibility = types.StringValue(res.GetVisibility())
-	state.AdminChangeTeamAccess = types.BoolValue(res.GetRepoAdminChangeTeamAccess())
+	state.ReadFromApi(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -189,17 +165,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	res, _, err := r.client.OrganizationAPI.
-		OrgEdit(ctx, plan.Name.ValueString()).
-		Body(api.EditOrgOption{
-			FullName:                  plan.FullName.ValueStringPointer(),
-			Description:               plan.Description.ValueStringPointer(),
-			Website:                   plan.Website.ValueStringPointer(),
-			Location:                  plan.Location.ValueStringPointer(),
-			Visibility:                plan.Visibility.ValueStringPointer(),
-			RepoAdminChangeTeamAccess: plan.AdminChangeTeamAccess.ValueBoolPointer(),
-		}).
-		Execute()
+	res, err := r.organizationAdapter.Edit(ctx, plan.ToApiEditOrganizationOptions())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea organization.",
@@ -209,14 +175,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	plan.ID = types.Int64Value(res.GetId())
-	plan.Name = types.StringValue(res.GetName())
-	plan.FullName = types.StringValue(res.GetFullName())
-	plan.Description = types.StringValue(res.GetDescription())
-	plan.Website = types.StringValue(res.GetWebsite())
-	plan.Location = types.StringValue(res.GetLocation())
-	plan.Visibility = types.StringValue(res.GetVisibility())
-	plan.AdminChangeTeamAccess = types.BoolValue(res.GetRepoAdminChangeTeamAccess())
+	plan.ReadFromApi(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -231,23 +190,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		return
 	}
 
-	res, err := r.getOrgByName(ctx, state.Name.ValueString())
-	if err != nil {
-		if adapters.IsErrorNotFound(err) {
-			return
-		}
-
-		resp.Diagnostics.AddError(
-			"Error Delete Gitea organization.",
-			"Could not check the organization to delete exists, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	_, err = r.client.OrganizationAPI.
-		OrgDelete(ctx, res.GetName()).
-		Execute()
+	err := r.organizationAdapter.Delete(ctx, state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea organization.",
@@ -260,12 +203,4 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 func (r *orgResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), req.ID)...)
-}
-
-func (r *orgResource) getOrgByName(ctx context.Context, name string) (*api.Organization, error) {
-	res, _, err := r.client.OrganizationAPI.
-		OrgGet(ctx, name).
-		Execute()
-
-	return res, err
 }

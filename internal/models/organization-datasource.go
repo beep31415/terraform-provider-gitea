@@ -1,6 +1,10 @@
 package models
 
-import "github.com/hashicorp/terraform-plugin-framework/types"
+import (
+	"terraform-provider-gitea/api"
+
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
 
 type OrganizationDataSourceModel struct {
 	ID                    types.Int64  `tfsdk:"id"`
@@ -12,4 +16,18 @@ type OrganizationDataSourceModel struct {
 	Visibility            types.String `tfsdk:"visibility"`
 	AdminChangeTeamAccess types.Bool   `tfsdk:"repo_admin_change_team_access"`
 	AvatarURL             types.String `tfsdk:"avatar_url"`
+}
+
+func NewOrganizationDataSource(organization *api.Organization) OrganizationDataSourceModel {
+	return OrganizationDataSourceModel{
+		ID:                    types.Int64Value(organization.GetId()),
+		Name:                  types.StringValue(organization.GetName()),
+		FullName:              types.StringValue(organization.GetFullName()),
+		Description:           types.StringValue(organization.GetDescription()),
+		Website:               types.StringValue(organization.GetWebsite()),
+		Location:              types.StringValue(organization.GetLocation()),
+		Visibility:            types.StringValue(organization.GetVisibility()),
+		AdminChangeTeamAccess: types.BoolValue(organization.GetRepoAdminChangeTeamAccess()),
+		AvatarURL:             types.StringValue(organization.GetAvatarUrl()),
+	}
 }

@@ -31,8 +31,8 @@ func main() {
 	}
 
 	res, _, err := c.OrganizationAPI.
-		TeamSearch(ctx, "test").
-		Q("test").
+		TeamSearch(ctx, "nas").
+		//Q("nas").
 		Execute()
 	if err != nil {
 		panic(fmt.Sprintf("error: %+v", err))

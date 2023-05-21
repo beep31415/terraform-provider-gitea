@@ -35,7 +35,7 @@ func NewTeamAdapter(client *api.APIClient) *TeamAdapter {
 	}
 }
 
-func (t *TeamAdapter) GetTeamById(ctx context.Context, id int64) (*Team, error) {
+func (t *TeamAdapter) GetById(ctx context.Context, id int64) (*Team, error) {
 	res, _, err := t.client.OrganizationAPI.
 		OrgGetTeam(ctx, id).
 		Execute()
@@ -43,7 +43,7 @@ func (t *TeamAdapter) GetTeamById(ctx context.Context, id int64) (*Team, error) 
 		return nil, err
 	}
 
-	members, err := t.getTeamMembers(ctx, id)
+	members, err := t.getMembers(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (t *TeamAdapter) GetTeamById(ctx context.Context, id int64) (*Team, error) 
 	}, err
 }
 
-func (t *TeamAdapter) GetTeamByOrgAndName(ctx context.Context, org, name string) (*Team, error) {
+func (t *TeamAdapter) GetByOrgAndName(ctx context.Context, org, name string) (*Team, error) {
 	res, _, err := t.client.OrganizationAPI.
 		TeamSearch(ctx, org).
 		Q(name).
@@ -71,7 +71,7 @@ func (t *TeamAdapter) GetTeamByOrgAndName(ctx context.Context, org, name string)
 		return nil, fmt.Errorf("Multiple teams with name '%s' were found.", name)
 	}
 
-	members, err := t.getTeamMembers(ctx, res.Data[0].GetId())
+	members, err := t.getMembers(ctx, res.Data[0].GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (t *TeamAdapter) GetTeamByOrgAndName(ctx context.Context, org, name string)
 	}, err
 }
 
-func (t *TeamAdapter) CreateTeam(ctx context.Context, options AddTeamOptions) (*Team, error) {
+func (t *TeamAdapter) Create(ctx context.Context, options AddTeamOptions) (*Team, error) {
 	res, _, err := t.client.OrganizationAPI.
 		OrgCreateTeam(ctx, options.Organization).
 		Body(options.AddOption).
@@ -92,7 +92,7 @@ func (t *TeamAdapter) CreateTeam(ctx context.Context, options AddTeamOptions) (*
 	}
 
 	for _, user := range options.Members {
-		err := t.addTeamMember(ctx, res.GetId(), user)
+		err := t.addMember(ctx, res.GetId(), user)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func (t *TeamAdapter) CreateTeam(ctx context.Context, options AddTeamOptions) (*
 	}, err
 }
 
-func (t *TeamAdapter) EditTeam(ctx context.Context, options EditTeamOptions) (*Team, error) {
+func (t *TeamAdapter) Edit(ctx context.Context, options EditTeamOptions) (*Team, error) {
 	res, _, err := t.client.OrganizationAPI.
 		OrgEditTeam(ctx, options.Id).
 		Body(options.EditOption).
@@ -113,14 +113,14 @@ func (t *TeamAdapter) EditTeam(ctx context.Context, options EditTeamOptions) (*T
 		return nil, err
 	}
 
-	existingMemberList, err := t.getTeamMembers(ctx, int64(options.Id))
+	existingMemberList, err := t.getMembers(ctx, int64(options.Id))
 	if err != nil {
 		return nil, err
 	}
 
 	for _, member := range existingMemberList {
 		if !arrays.Contains(member, options.Members...) {
-			err = t.removeTeamMember(ctx, int64(options.Id), member)
+			err = t.removeMember(ctx, int64(options.Id), member)
 			if err != nil {
 				return nil, err
 			}
@@ -129,7 +129,7 @@ func (t *TeamAdapter) EditTeam(ctx context.Context, options EditTeamOptions) (*T
 
 	for _, member := range options.Members {
 		if !arrays.Contains(member, existingMemberList...) {
-			err = t.addTeamMember(ctx, int64(options.Id), member)
+			err = t.addMember(ctx, int64(options.Id), member)
 			if err != nil {
 				return nil, err
 			}
@@ -142,19 +142,19 @@ func (t *TeamAdapter) EditTeam(ctx context.Context, options EditTeamOptions) (*T
 	}, err
 }
 
-func (t *TeamAdapter) DeleteTeam(ctx context.Context, id int64) error {
-	_, err := t.GetTeamById(ctx, id)
+func (t *TeamAdapter) Delete(ctx context.Context, id int64) error {
+	_, err := t.GetById(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	members, err := t.getTeamMembers(ctx, id)
+	members, err := t.getMembers(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	for _, member := range members {
-		err = t.removeTeamMember(ctx, id, member)
+		err = t.removeMember(ctx, id, member)
 		if err != nil {
 			return err
 		}
@@ -167,7 +167,7 @@ func (t *TeamAdapter) DeleteTeam(ctx context.Context, id int64) error {
 	return err
 }
 
-func (t *TeamAdapter) getTeamMembers(ctx context.Context, id int64) ([]string, error) {
+func (t *TeamAdapter) getMembers(ctx context.Context, id int64) ([]string, error) {
 	res, _, err := t.client.OrganizationAPI.
 		OrgListTeamMembers(ctx, id).
 		Execute()
@@ -183,7 +183,7 @@ func (t *TeamAdapter) getTeamMembers(ctx context.Context, id int64) ([]string, e
 	return users, err
 }
 
-func (t *TeamAdapter) addTeamMember(ctx context.Context, id int64, user string) error {
+func (t *TeamAdapter) addMember(ctx context.Context, id int64, user string) error {
 	_, err := t.client.OrganizationAPI.
 		OrgAddTeamMember(ctx, id, user).
 		Execute()
@@ -191,7 +191,7 @@ func (t *TeamAdapter) addTeamMember(ctx context.Context, id int64, user string) 
 	return err
 }
 
-func (t *TeamAdapter) removeTeamMember(ctx context.Context, id int64, user string) error {
+func (t *TeamAdapter) removeMember(ctx context.Context, id int64, user string) error {
 	_, err := t.client.OrganizationAPI.
 		OrgRemoveTeamMember(ctx, id, user).
 		Execute()

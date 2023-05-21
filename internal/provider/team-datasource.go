@@ -88,7 +88,7 @@ func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	res, err := d.teamAdapter.GetTeamByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
+	res, err := d.teamAdapter.GetByOrgAndName(ctx, state.Organization.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea team.",

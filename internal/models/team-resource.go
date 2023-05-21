@@ -25,7 +25,7 @@ type TeamResourceModel struct {
 	Members                 types.List   `tfsdk:"members"`
 }
 
-func (t *TeamResourceModel) ReadFrom(ctx context.Context, team *adapters.Team) diag.Diagnostics {
+func (t *TeamResourceModel) ReadFromApi(ctx context.Context, team *adapters.Team) diag.Diagnostics {
 	t.Id = types.Int64Value(team.Team.GetId())
 	t.Name = types.StringValue(team.Team.GetName())
 	t.Permission = types.StringValue(team.Team.GetPermission())
@@ -42,7 +42,7 @@ func (t *TeamResourceModel) ReadFrom(ctx context.Context, team *adapters.Team) d
 	return diags
 }
 
-func (t *TeamResourceModel) ToAddTeamOptions(ctx context.Context) (adapters.AddTeamOptions, diag.Diagnostics) {
+func (t *TeamResourceModel) ToApiAddTeamOptions(ctx context.Context) (adapters.AddTeamOptions, diag.Diagnostics) {
 	var memberList []string
 	diags := t.Members.ElementsAs(ctx, &memberList, true)
 	if diags.HasError() {
@@ -66,7 +66,7 @@ func (t *TeamResourceModel) ToAddTeamOptions(ctx context.Context) (adapters.AddT
 	}, diags
 }
 
-func (t *TeamResourceModel) ToEditTeamOptions(ctx context.Context) (adapters.EditTeamOptions, diag.Diagnostics) {
+func (t *TeamResourceModel) ToApiEditTeamOptions(ctx context.Context) (adapters.EditTeamOptions, diag.Diagnostics) {
 	var memberList []string
 	diags := t.Members.ElementsAs(ctx, &memberList, true)
 	if diags.HasError() {

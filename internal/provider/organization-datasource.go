@@ -2,13 +2,13 @@ package provider
 
 import (
 	"context"
+
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/internal/adapters"
 	"terraform-provider-gitea/internal/models"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var (
@@ -17,7 +17,8 @@ var (
 )
 
 type orgDataSource struct {
-	client *api.APIClient
+	client              *api.APIClient
+	organizationAdapter *adapters.Organizationdapter
 }
 
 func NewOrgDataSource() datasource.DataSource {
@@ -78,6 +79,7 @@ func (d *orgDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 	}
 
 	d.client = req.ProviderData.(*api.APIClient)
+	d.organizationAdapter = adapters.NewOrganizationdapter(d.client)
 }
 
 func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -87,9 +89,7 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	res, _, err := d.client.OrganizationAPI.
-		OrgGet(ctx, state.Name.ValueString()).
-		Execute()
+	res, err := d.organizationAdapter.GetByName(ctx, state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea organization.",
@@ -98,17 +98,7 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	state = models.OrganizationDataSourceModel{
-		ID:                    types.Int64Value(res.GetId()),
-		Name:                  types.StringValue(res.GetName()),
-		FullName:              types.StringValue(res.GetFullName()),
-		Description:           types.StringValue(res.GetDescription()),
-		Website:               types.StringValue(res.GetWebsite()),
-		Location:              types.StringValue(res.GetLocation()),
-		Visibility:            types.StringValue(res.GetVisibility()),
-		AdminChangeTeamAccess: types.BoolValue(res.GetRepoAdminChangeTeamAccess()),
-		AvatarURL:             types.StringValue(res.GetAvatarUrl()),
-	}
+	state = models.NewOrganizationDataSource(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
