@@ -31,7 +31,8 @@ var (
 )
 
 type branchProtectionResource struct {
-	client *api.APIClient
+	client                  *api.APIClient
+	branchProtectionAdapter adapters.BranchProtectionAdapter
 }
 
 func NewBranchProtectionResource() resource.Resource {
@@ -200,6 +201,7 @@ func (r *branchProtectionResource) Configure(_ context.Context, req resource.Con
 	}
 
 	r.client = req.ProviderData.(*api.APIClient)
+	r.branchProtectionAdapter = *adapters.NewBranchProtectionAdapter(r.client)
 }
 
 func (r *branchProtectionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -209,39 +211,13 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	var approvalWhiteList []string
-	var mergeWhiteList []string
-	var pushWhiteList []string
-	resp.Diagnostics.Append(plan.ApprovalsWhitelistUsername.ElementsAs(ctx, &approvalWhiteList, true)...)
-	resp.Diagnostics.Append(plan.MergeWhitelistUsernames.ElementsAs(ctx, &mergeWhiteList, true)...)
-	resp.Diagnostics.Append(plan.PushWhitelistUsernames.ElementsAs(ctx, &pushWhiteList, true)...)
+	addBranchProtectionOptions, diags := plan.ToApiAddBranchProtectionOptions(ctx)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, _, err := r.client.RepositoryAPI.
-		RepoCreateBranchProtection(ctx, plan.Owner.ValueString(), plan.Repo.ValueString()).
-		Body(api.CreateBranchProtectionOption{
-			RuleName:                      plan.BranchName.ValueStringPointer(),
-			BranchName:                    plan.BranchName.ValueStringPointer(),
-			ApprovalsWhitelistUsername:    approvalWhiteList,
-			BlockOnOfficialReviewRequests: plan.BlockOnOfficialReviewRequests.ValueBoolPointer(),
-			BlockOnOutdatedBranch:         plan.BlockOnOutdatedBranch.ValueBoolPointer(),
-			BlockOnRejectedReviews:        plan.BlockOnRejectedReviews.ValueBoolPointer(),
-			DismissStaleApprovals:         plan.DismissStaleApprovals.ValueBoolPointer(),
-			EnableApprovalsWhitelist:      plan.EnableApprovalsWhitelist.ValueBoolPointer(),
-			EnableMergeWhitelist:          plan.EnableMergeWhitelist.ValueBoolPointer(),
-			EnablePush:                    plan.EnablePush.ValueBoolPointer(),
-			EnablePushWhitelist:           plan.EnablePushWhitelist.ValueBoolPointer(),
-			MergeWhitelistUsernames:       mergeWhiteList,
-			ProtectedFilePatterns:         plan.ProtectedFilePatterns.ValueStringPointer(),
-			PushWhitelistDeployKeys:       plan.PushWhitelistDeployKeys.ValueBoolPointer(),
-			PushWhitelistUsernames:        pushWhiteList,
-			RequireSignedCommits:          plan.RequireSignedCommits.ValueBoolPointer(),
-			RequiredApprovals:             plan.RequiredApprovals.ValueInt64Pointer(),
-			UnprotectedFilePatterns:       plan.UnprotectedFilePatterns.ValueStringPointer(),
-		}).
-		Execute()
+	res, err := r.branchProtectionAdapter.Create(ctx, addBranchProtectionOptions)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea branch protection.",
@@ -252,33 +228,11 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	plan.BranchName = types.StringValue(res.GetBranchName())
-	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
-	plan.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
-	plan.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
-	plan.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
-	plan.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
-	plan.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
-	plan.EnablePush = types.BoolValue(res.GetEnablePush())
-	plan.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
-	plan.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
-	plan.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
-	plan.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
-	plan.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
-	plan.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
-
-	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
-	resp.Diagnostics.Append(diags...)
-	tfMergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
-	resp.Diagnostics.Append(diags...)
-	tfPushWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetPushWhitelistUsernames())
+	diags = plan.ReadFromApi(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.ApprovalsWhitelistUsername = tfApprovalWhiteList
-	plan.MergeWhitelistUsernames = tfMergeWhiteList
-	plan.PushWhitelistUsernames = tfPushWhiteList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -293,7 +247,8 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	res, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
+	res, err := r.branchProtectionAdapter.GetByOwnerRepoAndBranchName(ctx,
+		state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea branch protection.",
@@ -304,33 +259,11 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	state.BranchName = types.StringValue(res.GetBranchName())
-	state.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
-	state.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
-	state.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
-	state.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
-	state.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
-	state.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
-	state.EnablePush = types.BoolValue(res.GetEnablePush())
-	state.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
-	state.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
-	state.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
-	state.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
-	state.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
-	state.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
-
-	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
-	resp.Diagnostics.Append(diags...)
-	tfMergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
-	resp.Diagnostics.Append(diags...)
-	tfPushWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetPushWhitelistUsernames())
+	diags := state.ReadFromApi(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	state.ApprovalsWhitelistUsername = tfApprovalWhiteList
-	state.MergeWhitelistUsernames = tfMergeWhiteList
-	state.PushWhitelistUsernames = tfPushWhiteList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -345,37 +278,13 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	var approvalWhiteList []string
-	var mergeWhiteList []string
-	var pushWhiteList []string
-	resp.Diagnostics.Append(plan.ApprovalsWhitelistUsername.ElementsAs(ctx, &approvalWhiteList, false)...)
-	resp.Diagnostics.Append(plan.MergeWhitelistUsernames.ElementsAs(ctx, &mergeWhiteList, false)...)
-	resp.Diagnostics.Append(plan.PushWhitelistUsernames.ElementsAs(ctx, &pushWhiteList, false)...)
+	editBranchProtectionOptions, diags := plan.ToApiEditBranchProtectionOptions(ctx)
+	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	res, _, err := r.client.RepositoryAPI.
-		RepoEditBranchProtection(ctx, plan.Owner.ValueString(), plan.Repo.ValueString(), plan.BranchName.ValueString()).
-		Body(api.EditBranchProtectionOption{
-			ApprovalsWhitelistUsername:    approvalWhiteList,
-			BlockOnOfficialReviewRequests: plan.BlockOnOfficialReviewRequests.ValueBoolPointer(),
-			BlockOnOutdatedBranch:         plan.BlockOnOutdatedBranch.ValueBoolPointer(),
-			BlockOnRejectedReviews:        plan.BlockOnRejectedReviews.ValueBoolPointer(),
-			DismissStaleApprovals:         plan.DismissStaleApprovals.ValueBoolPointer(),
-			EnableApprovalsWhitelist:      plan.EnableApprovalsWhitelist.ValueBoolPointer(),
-			EnableMergeWhitelist:          plan.EnableMergeWhitelist.ValueBoolPointer(),
-			EnablePush:                    plan.EnablePush.ValueBoolPointer(),
-			EnablePushWhitelist:           plan.EnablePushWhitelist.ValueBoolPointer(),
-			MergeWhitelistUsernames:       mergeWhiteList,
-			ProtectedFilePatterns:         plan.ProtectedFilePatterns.ValueStringPointer(),
-			PushWhitelistDeployKeys:       plan.PushWhitelistDeployKeys.ValueBoolPointer(),
-			PushWhitelistUsernames:        pushWhiteList,
-			RequireSignedCommits:          plan.RequireSignedCommits.ValueBoolPointer(),
-			RequiredApprovals:             plan.RequiredApprovals.ValueInt64Pointer(),
-			UnprotectedFilePatterns:       plan.UnprotectedFilePatterns.ValueStringPointer(),
-		}).
-		Execute()
+	res, err := r.branchProtectionAdapter.Edit(ctx, editBranchProtectionOptions)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Gitea branch protection.",
@@ -386,33 +295,11 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	plan.BranchName = types.StringValue(res.GetBranchName())
-	plan.BlockOnOfficialReviewRequests = types.BoolValue(res.GetBlockOnOfficialReviewRequests())
-	plan.BlockOnOutdatedBranch = types.BoolValue(res.GetBlockOnOutdatedBranch())
-	plan.BlockOnRejectedReviews = types.BoolValue(res.GetBlockOnRejectedReviews())
-	plan.DismissStaleApprovals = types.BoolValue(res.GetDismissStaleApprovals())
-	plan.EnableApprovalsWhitelist = types.BoolValue(res.GetEnableApprovalsWhitelist())
-	plan.EnableMergeWhitelist = types.BoolValue(res.GetEnableMergeWhitelist())
-	plan.EnablePush = types.BoolValue(res.GetEnablePush())
-	plan.EnablePushWhitelist = types.BoolValue(res.GetEnablePushWhitelist())
-	plan.ProtectedFilePatterns = types.StringValue(res.GetProtectedFilePatterns())
-	plan.PushWhitelistDeployKeys = types.BoolValue(res.GetPushWhitelistDeployKeys())
-	plan.RequireSignedCommits = types.BoolValue(res.GetRequireSignedCommits())
-	plan.RequiredApprovals = types.Int64Value(res.GetRequiredApprovals())
-	plan.UnprotectedFilePatterns = types.StringValue(res.GetUnprotectedFilePatterns())
-
-	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
-	resp.Diagnostics.Append(diags...)
-	tfMergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
-	resp.Diagnostics.Append(diags...)
-	tfPushWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetPushWhitelistUsernames())
+	diags = plan.ReadFromApi(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.ApprovalsWhitelistUsername = tfApprovalWhiteList
-	plan.MergeWhitelistUsernames = tfMergeWhiteList
-	plan.PushWhitelistUsernames = tfPushWhiteList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -427,24 +314,8 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	_, err := r.getBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
-	if err != nil {
-		if adapters.IsErrorNotFound(err) {
-			return
-		}
-
-		resp.Diagnostics.AddError(
-			"Error Delete Gitea branch protection.",
-			fmt.Sprintf("Could not check if branch protection exists for '%s/%s/%s', unexpected error: %s",
-				state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString(), adapters.GetAPIErrorMessage(err)),
-		)
-
-		return
-	}
-
-	_, err = r.client.RepositoryAPI.
-		RepoDeleteBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString()).
-		Execute()
+	err := r.branchProtectionAdapter.Delete(ctx,
+		state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea branch protection.",
@@ -470,12 +341,4 @@ func (r *branchProtectionResource) ImportState(ctx context.Context, req resource
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("repo"), ids[1])...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("branch_name"), ids[2])...)
-}
-
-func (r *branchProtectionResource) getBranchProtection(ctx context.Context, owner, repo, name string) (*api.BranchProtection, error) {
-	res, _, err := r.client.RepositoryAPI.
-		RepoGetBranchProtection(ctx, owner, repo, name).
-		Execute()
-
-	return res, err
 }

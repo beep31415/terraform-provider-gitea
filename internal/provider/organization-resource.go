@@ -27,7 +27,7 @@ var (
 
 type orgResource struct {
 	client              *api.APIClient
-	organizationAdapter *adapters.Organizationdapter
+	organizationAdapter *adapters.OrganizationAdapter
 }
 
 func NewOrgResource() resource.Resource {
@@ -105,7 +105,7 @@ func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest
 	}
 
 	r.client = req.ProviderData.(*api.APIClient)
-	r.organizationAdapter = adapters.NewOrganizationdapter(r.client)
+	r.organizationAdapter = adapters.NewOrganizationAdapter(r.client)
 }
 
 func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

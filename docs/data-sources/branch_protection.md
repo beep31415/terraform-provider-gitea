@@ -19,7 +19,6 @@ Fetches a Gitea team.
 
 - `owner` (String) The owner of the repo the rule belongs to.
 - `repo` (String) The repo that the rule belongs to.
-- `rule_name` (String) The rule name.
 
 ### Read-Only
 

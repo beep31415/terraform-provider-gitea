@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -18,7 +19,8 @@ var (
 )
 
 type branchProtectionDataSource struct {
-	client *api.APIClient
+	client                  *api.APIClient
+	branchProtectionAdapter adapters.BranchProtectionAdapter
 }
 
 func NewBranchProtectionDataSource() datasource.DataSource {
@@ -33,10 +35,6 @@ func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.Sche
 	resp.Schema = schema.Schema{
 		Description: "Fetches a Gitea team.",
 		Attributes: map[string]schema.Attribute{
-			"rule_name": schema.StringAttribute{
-				Description: "The rule name.",
-				Required:    true,
-			},
 			"owner": schema.StringAttribute{
 				Description: "The owner of the repo the rule belongs to.",
 				Required:    true,
@@ -126,6 +124,7 @@ func (d *branchProtectionDataSource) Configure(_ context.Context, req datasource
 	}
 
 	d.client = req.ProviderData.(*api.APIClient)
+	d.branchProtectionAdapter = *adapters.NewBranchProtectionAdapter(d.client)
 }
 
 func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -135,9 +134,8 @@ func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.Re
 		return
 	}
 
-	res, _, err := d.client.RepositoryAPI.
-		RepoGetBranchProtection(ctx, state.Owner.ValueString(), state.Repo.ValueString(), state.RuleName.ValueString()).
-		Execute()
+	res, err := d.branchProtectionAdapter.GetByOwnerRepoAndBranchName(ctx,
+		state.Owner.ValueString(), state.Repo.ValueString(), state.BranchName.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea branch protection.",
@@ -147,37 +145,11 @@ func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.Re
 		return
 	}
 
-	approvalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetApprovalsWhitelistUsername())
-	resp.Diagnostics.Append(diags...)
-	mergeWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetMergeWhitelistUsernames())
-	resp.Diagnostics.Append(diags...)
-	pushWhiteList, diags := types.ListValueFrom(ctx, types.StringType, res.GetPushWhitelistUsernames())
+	var diags diag.Diagnostics
+	state, diags = models.NewBranchProtectionDataSource(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	state = models.BranchProtectionDataSourceModel{
-		RuleName:                      types.StringValue(res.GetRuleName()),
-		Owner:                         state.Owner,
-		Repo:                          state.Repo,
-		BranchName:                    types.StringValue(res.GetBranchName()),
-		ApprovalsWhitelistUsername:    approvalWhiteList,
-		BlockOnOfficialReviewRequests: types.BoolValue(res.GetBlockOnOfficialReviewRequests()),
-		BlockOnOutdatedBranch:         types.BoolValue(res.GetBlockOnOutdatedBranch()),
-		BlockOnRejectedReviews:        types.BoolValue(res.GetBlockOnRejectedReviews()),
-		DismissStaleApprovals:         types.BoolValue(res.GetDismissStaleApprovals()),
-		EnableApprovalsWhitelist:      types.BoolValue(res.GetEnableApprovalsWhitelist()),
-		EnableMergeWhitelist:          types.BoolValue(res.GetEnableMergeWhitelist()),
-		EnablePush:                    types.BoolValue(res.GetEnablePush()),
-		EnablePushWhitelist:           types.BoolValue(res.GetEnablePushWhitelist()),
-		MergeWhitelistUsernames:       mergeWhiteList,
-		ProtectedFilePatterns:         types.StringValue(res.GetProtectedFilePatterns()),
-		PushWhitelistDeployKeys:       types.BoolValue(res.GetPushWhitelistDeployKeys()),
-		PushWhitelistUsernames:        pushWhiteList,
-		RequireSignedCommits:          types.BoolValue(res.GetRequireSignedCommits()),
-		RequiredApprovals:             types.Int64Value(res.GetRequiredApprovals()),
-		UnprotectedFilePatterns:       types.StringValue(res.GetUnprotectedFilePatterns()),
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)

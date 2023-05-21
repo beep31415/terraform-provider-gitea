@@ -18,7 +18,7 @@ var (
 
 type orgDataSource struct {
 	client              *api.APIClient
-	organizationAdapter *adapters.Organizationdapter
+	organizationAdapter *adapters.OrganizationAdapter
 }
 
 func NewOrgDataSource() datasource.DataSource {
@@ -79,7 +79,7 @@ func (d *orgDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 	}
 
 	d.client = req.ProviderData.(*api.APIClient)
-	d.organizationAdapter = adapters.NewOrganizationdapter(d.client)
+	d.organizationAdapter = adapters.NewOrganizationAdapter(d.client)
 }
 
 func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

@@ -6,7 +6,7 @@ import (
 	"terraform-provider-gitea/api"
 )
 
-type Organizationdapter struct {
+type OrganizationAdapter struct {
 	client *api.APIClient
 }
 
@@ -15,13 +15,13 @@ type EditOrganizationOptions struct {
 	EditOption api.EditOrgOption
 }
 
-func NewOrganizationdapter(client *api.APIClient) *Organizationdapter {
-	return &Organizationdapter{
+func NewOrganizationAdapter(client *api.APIClient) *OrganizationAdapter {
+	return &OrganizationAdapter{
 		client: client,
 	}
 }
 
-func (o *Organizationdapter) GetByName(ctx context.Context, name string) (*api.Organization, error) {
+func (o *OrganizationAdapter) GetByName(ctx context.Context, name string) (*api.Organization, error) {
 	res, _, err := o.client.OrganizationAPI.
 		OrgGet(ctx, name).
 		Execute()
@@ -29,7 +29,7 @@ func (o *Organizationdapter) GetByName(ctx context.Context, name string) (*api.O
 	return res, err
 }
 
-func (o *Organizationdapter) Create(ctx context.Context, option api.CreateOrgOption) (*api.Organization, error) {
+func (o *OrganizationAdapter) Create(ctx context.Context, option api.CreateOrgOption) (*api.Organization, error) {
 	res, _, err := o.client.OrganizationAPI.
 		OrgCreate(ctx).
 		Organization(option).
@@ -38,7 +38,7 @@ func (o *Organizationdapter) Create(ctx context.Context, option api.CreateOrgOpt
 	return res, err
 }
 
-func (o *Organizationdapter) Edit(ctx context.Context, options EditOrganizationOptions) (*api.Organization, error) {
+func (o *OrganizationAdapter) Edit(ctx context.Context, options EditOrganizationOptions) (*api.Organization, error) {
 	res, _, err := o.client.OrganizationAPI.
 		OrgEdit(ctx, options.Name).
 		Body(options.EditOption).
@@ -47,7 +47,7 @@ func (o *Organizationdapter) Edit(ctx context.Context, options EditOrganizationO
 	return res, err
 }
 
-func (o *Organizationdapter) Delete(ctx context.Context, name string) error {
+func (o *OrganizationAdapter) Delete(ctx context.Context, name string) error {
 	res, err := o.GetByName(ctx, name)
 	if err != nil {
 		return err
