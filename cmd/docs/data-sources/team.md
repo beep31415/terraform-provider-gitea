@@ -26,7 +26,7 @@ Fetches a Gitea team.
 - `description` (String) The team description
 - `id` (Number) Identifier attribute.
 - `includes_all_repositories` (Boolean) Flag indicating whether team has access to all repos.
+- `members` (List of String) Team members.
 - `permission` (String) Team permission within the organization.
-- `units` (Map of String) List of unit persmissions for this team.
 
 

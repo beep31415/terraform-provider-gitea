@@ -14,8 +14,6 @@ import (
 
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/internal/adapters"
-	"terraform-provider-gitea/internal/datasources"
-	"terraform-provider-gitea/internal/resources"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -212,20 +210,20 @@ func (p *giteaProvider) Configure(ctx context.Context, req provider.ConfigureReq
 
 func (p *giteaProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		datasources.NewOrgDataSource,
-		datasources.NewUserDataSource,
-		datasources.NewRepoDataSource,
-		datasources.NewBranchProtectionDataSource,
-		datasources.NewTeamDataSource,
+		NewOrgDataSource,
+		NewUserDataSource,
+		NewRepoDataSource,
+		NewBranchProtectionDataSource,
+		NewTeamDataSource,
 	}
 }
 
 func (p *giteaProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		resources.NewOrgResource,
-		resources.NewRepoResource,
-		resources.NewBranchProtectionResource,
-		resources.NewTeamResource,
+		NewOrgResource,
+		NewRepoResource,
+		NewBranchProtectionResource,
+		NewTeamResource,
 	}
 }
 

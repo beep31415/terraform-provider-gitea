@@ -1,4 +1,4 @@
-package resources
+package provider
 
 import (
 	"context"
@@ -159,18 +159,11 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	plan.Id = types.Int64Value(res.GetId())
-	plan.Permission = types.StringValue(res.GetPermission())
-	plan.Description = types.StringValue(res.GetDescription())
-	plan.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
-	plan.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
-
-	tfMembersList, diags := types.ListValueFrom(ctx, types.StringType, memberList)
+	diags := plan.ReadFrom(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.Members = tfMembersList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -195,29 +188,11 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	state.Id = types.Int64Value(res.GetId())
-	state.Name = types.StringValue(res.GetName())
-	state.Permission = types.StringValue(res.GetPermission())
-	state.Description = types.StringValue(res.GetDescription())
-	state.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
-	state.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
-
-	memberList, err := r.teamAdapter.GetTeamMembers(ctx, res.GetId())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error Reading Gitea team.",
-			"Could not read Gitea team members for team "+state.Name.ValueString()+": "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	tfMembersList, diags := types.ListValueFrom(ctx, types.StringType, memberList)
+	diags := state.ReadFrom(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	state.Members = tfMembersList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -262,19 +237,11 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	plan.Id = types.Int64Value(res.GetId())
-	plan.Name = types.StringValue(res.GetName())
-	plan.Permission = types.StringValue(res.GetPermission())
-	plan.Description = types.StringValue(res.GetDescription())
-	plan.CanCreateOrgRepo = types.BoolValue(res.GetCanCreateOrgRepo())
-	plan.IncludesAllRepositories = types.BoolValue(res.GetIncludesAllRepositories())
-
-	tfMembersList, diags := types.ListValueFrom(ctx, types.StringType, updatedMemberList)
+	diags := plan.ReadFrom(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.Members = tfMembersList
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {

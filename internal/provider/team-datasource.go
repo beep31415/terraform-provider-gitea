@@ -1,4 +1,4 @@
-package datasources
+package provider
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -67,10 +68,10 @@ func (d *teamDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, r
 				Description: "Flag indicating whether team has access to all repos.",
 				Computed:    true,
 			},
-			"units": schema.MapAttribute{
-				Description: "List of unit persmissions for this team.",
-				Computed:    true,
+			"members": schema.ListAttribute{
+				Description: "Team members.",
 				ElementType: types.StringType,
+				Computed:    true,
 			},
 		},
 	}
@@ -102,21 +103,11 @@ func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	units, diags := types.MapValueFrom(ctx, types.StringType, res.GetUnitsMap())
+	var diags diag.Diagnostics
+	state, diags = models.NewTeamDataSource(ctx, res)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	state = models.TeamDataSourceModel{
-		Id:                      types.Int64Value(res.GetId()),
-		Name:                    types.StringValue(res.GetName()),
-		Organization:            types.StringValue(state.Organization.ValueString()),
-		Permission:              types.StringValue(res.GetPermission()),
-		Description:             types.StringValue(res.GetDescription()),
-		CanCreateOrgRepo:        types.BoolValue(res.GetCanCreateOrgRepo()),
-		IncludesAllRepositories: types.BoolValue(res.GetIncludesAllRepositories()),
-		Units:                   units,
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
