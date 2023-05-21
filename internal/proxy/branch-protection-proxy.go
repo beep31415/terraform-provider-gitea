@@ -26,7 +26,7 @@ func (b *BranchProtectionProxy) FillDataSource(ctx context.Context, model models
 	res, err := b.getByOwnerRepoAndBranchName(ctx,
 		model.Owner.ValueString(), model.Repo.ValueString(), model.BranchName.ValueString())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Reading Gitea branch protection.")
+		return toDiagnosticArrayError(err, "Error Reading Gitea branch protection.")
 	}
 
 	return b.converter.ReadToDataSource(ctx, model, res)
@@ -36,7 +36,7 @@ func (b *BranchProtectionProxy) FillResource(ctx context.Context, model models.B
 	res, err := b.getByOwnerRepoAndBranchName(ctx,
 		model.Owner.ValueString(), model.Repo.ValueString(), model.BranchName.ValueString())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Reading Gitea branch protection.")
+		return toDiagnosticArrayError(err, "Error Reading Gitea branch protection.")
 	}
 
 	return b.converter.ReadToResource(ctx, model, res)
@@ -53,7 +53,7 @@ func (b *BranchProtectionProxy) Create(ctx context.Context, model models.BranchP
 		Body(option).
 		Execute()
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Creating Gitea branch protection.")
+		return toDiagnosticArrayError(err, "Error Creating Gitea branch protection.")
 	}
 
 	return b.converter.ReadToResource(ctx, model, res)
@@ -71,7 +71,7 @@ func (b *BranchProtectionProxy) Edit(ctx context.Context, model models.BranchPro
 		Body(option).
 		Execute()
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Updating Gitea branch protection.")
+		return toDiagnosticArrayError(err, "Error Updating Gitea branch protection.")
 	}
 
 	return b.converter.ReadToResource(ctx, model, res)
@@ -85,7 +85,7 @@ func (b *BranchProtectionProxy) Delete(ctx context.Context, model models.BranchP
 			return nil
 		}
 
-		return ToDiagnosticError(err, "Error Deleting Gitea branch protection.")
+		return toDiagnosticError(err, "Error Deleting Gitea branch protection.")
 	}
 
 	_, err = b.client.RepositoryAPI.
@@ -93,7 +93,7 @@ func (b *BranchProtectionProxy) Delete(ctx context.Context, model models.BranchP
 			model.Owner.ValueString(), model.Repo.ValueString(), model.BranchName.ValueString()).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Deleting Gitea branch protection.")
+		return toDiagnosticError(err, "Error Deleting Gitea branch protection.")
 	}
 
 	return nil

@@ -25,7 +25,7 @@ func NewRepositoryProxy(client *api.APIClient) *RepositoryProxy {
 func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.RepositoryDataSourceModel) diag.Diagnostic {
 	res, err := r.getByOwnerAndName(ctx, model.Owner.ValueString(), model.Name.ValueString())
 	if err != nil {
-		return ToDiagnosticError(err, "Error Reading Gitea repository.")
+		return toDiagnosticError(err, "Error Reading Gitea repository.")
 	}
 
 	r.converter.ReadToDataSource(model, res)
@@ -36,7 +36,7 @@ func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.Repos
 func (r *RepositoryProxy) FillResource(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostic {
 	res, err := r.getByOwnerAndName(ctx, model.Owner.ValueString(), model.Name.ValueString())
 	if err != nil {
-		return ToDiagnosticError(err, "Error Reading Gitea repository.")
+		return toDiagnosticError(err, "Error Reading Gitea repository.")
 	}
 
 	r.converter.ReadToResource(model, res)
@@ -47,7 +47,7 @@ func (r *RepositoryProxy) FillResource(ctx context.Context, model models.Reposit
 func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostic {
 	org, err := r.getOrgByName(ctx, model.Owner.ValueString())
 	if err != nil {
-		return ToDiagnosticError(err, "Error Creating Gitea repository.")
+		return toDiagnosticError(err, "Error Creating Gitea repository.")
 	}
 
 	createOptions := r.converter.ToApiAddRepositoryOptions(model)
@@ -59,7 +59,7 @@ func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryRes
 		res, err = r.createCurrentUserRepo(ctx, createOptions)
 	}
 	if err != nil {
-		return ToDiagnosticError(err, "Error Creating Gitea repository.")
+		return toDiagnosticError(err, "Error Creating Gitea repository.")
 	}
 
 	r.converter.ReadToResource(model, res)
@@ -75,7 +75,7 @@ func (r *RepositoryProxy) Edit(ctx context.Context, model models.RepositoryResou
 		Body(editOptions).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Updating Gitea repository.")
+		return toDiagnosticError(err, "Error Updating Gitea repository.")
 	}
 
 	r.converter.ReadToResource(model, res)
@@ -90,14 +90,14 @@ func (r *RepositoryProxy) Delete(ctx context.Context, model models.RepositoryRes
 			return nil
 		}
 
-		return ToDiagnosticError(err, "Error Deleting Gitea repository.")
+		return toDiagnosticError(err, "Error Deleting Gitea repository.")
 	}
 
 	_, err = r.client.RepositoryAPI.
 		RepoDelete(ctx, *res.GetOwner().Login, res.GetName()).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Deleting Gitea repository.")
+		return toDiagnosticError(err, "Error Deleting Gitea repository.")
 	}
 
 	return nil

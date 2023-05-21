@@ -27,7 +27,7 @@ func NewTeamProxy(client *api.APIClient) *TeamProxy {
 func (t *TeamProxy) FillDataSource(ctx context.Context, model models.TeamDataSourceModel) diag.Diagnostics {
 	res, err := t.getByOrgAndName(ctx, model.Organization.ValueString(), model.Name.ValueString())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Reading Gitea team.")
+		return toDiagnosticArrayError(err, "Error Reading Gitea team.")
 	}
 
 	t.converter.ReadToDataSource(model, res)
@@ -35,7 +35,7 @@ func (t *TeamProxy) FillDataSource(ctx context.Context, model models.TeamDataSou
 	var members []string
 	members, err = t.getMembers(ctx, res.GetId())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Reading Gitea team.")
+		return toDiagnosticArrayError(err, "Error Reading Gitea team.")
 	}
 
 	return t.converter.ReadMembersToDataSource(ctx, model, members)
@@ -44,7 +44,7 @@ func (t *TeamProxy) FillDataSource(ctx context.Context, model models.TeamDataSou
 func (t *TeamProxy) FillResource(ctx context.Context, model models.TeamResourceModel) diag.Diagnostics {
 	res, err := t.getByOrgAndName(ctx, model.Organization.ValueString(), model.Name.ValueString())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Reading Gitea team.")
+		return toDiagnosticArrayError(err, "Error Reading Gitea team.")
 	}
 
 	t.converter.ReadToResource(model, res)
@@ -52,7 +52,7 @@ func (t *TeamProxy) FillResource(ctx context.Context, model models.TeamResourceM
 	var members []string
 	members, err = t.getMembers(ctx, res.GetId())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Reading Gitea team.")
+		return toDiagnosticArrayError(err, "Error Reading Gitea team.")
 	}
 
 	return t.converter.ReadMembersToResource(ctx, model, members)
@@ -66,7 +66,7 @@ func (t *TeamProxy) Create(ctx context.Context, model models.TeamResourceModel) 
 		Body(option).
 		Execute()
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Creating Gitea team.")
+		return toDiagnosticArrayError(err, "Error Creating Gitea team.")
 	}
 
 	t.converter.ReadToResource(model, res)
@@ -79,7 +79,7 @@ func (t *TeamProxy) Create(ctx context.Context, model models.TeamResourceModel) 
 	for _, user := range members {
 		err := t.addMember(ctx, res.GetId(), user)
 		if err != nil {
-			diags.Append(ToDiagnosticError(err, "Error Creating Gitea team."))
+			diags.Append(toDiagnosticError(err, "Error Creating Gitea team."))
 		}
 	}
 
@@ -94,14 +94,14 @@ func (t *TeamProxy) Edit(ctx context.Context, model models.TeamResourceModel) di
 		Body(option).
 		Execute()
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Updating Gitea team.")
+		return toDiagnosticArrayError(err, "Error Updating Gitea team.")
 	}
 
 	t.converter.ReadToResource(model, res)
 
 	existingMemberList, err := t.getMembers(ctx, res.GetId())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Updating Gitea team.")
+		return toDiagnosticArrayError(err, "Error Updating Gitea team.")
 	}
 
 	members, diags := t.converter.ToMembers(ctx, model.Members)
@@ -113,7 +113,7 @@ func (t *TeamProxy) Edit(ctx context.Context, model models.TeamResourceModel) di
 		if !arrays.Contains(member, members...) {
 			err = t.removeMember(ctx, res.GetId(), member)
 			if err != nil {
-				diags.Append(ToDiagnosticError(err, "Error Updating Gitea team."))
+				diags.Append(toDiagnosticError(err, "Error Updating Gitea team."))
 			}
 		}
 	}
@@ -122,7 +122,7 @@ func (t *TeamProxy) Edit(ctx context.Context, model models.TeamResourceModel) di
 		if !arrays.Contains(member, existingMemberList...) {
 			err = t.addMember(ctx, res.GetId(), member)
 			if err != nil {
-				diags.Append(ToDiagnosticError(err, "Error Updating Gitea team."))
+				diags.Append(toDiagnosticError(err, "Error Updating Gitea team."))
 			}
 		}
 	}
@@ -137,19 +137,19 @@ func (t *TeamProxy) Delete(ctx context.Context, model models.TeamResourceModel) 
 			return nil
 		}
 
-		return ToDiagnosticArrayError(err, "Error Deleting Gitea team.")
+		return toDiagnosticArrayError(err, "Error Deleting Gitea team.")
 	}
 
 	members, err := t.getMembers(ctx, res.GetId())
 	if err != nil {
-		return ToDiagnosticArrayError(err, "Error Deleting Gitea team.")
+		return toDiagnosticArrayError(err, "Error Deleting Gitea team.")
 	}
 
 	var diags diag.Diagnostics
 	for _, member := range members {
 		err = t.removeMember(ctx, res.GetId(), member)
 		if err != nil {
-			diags.Append(ToDiagnosticError(err, "Error Deleting Gitea team."))
+			diags.Append(toDiagnosticError(err, "Error Deleting Gitea team."))
 		}
 	}
 
@@ -157,7 +157,7 @@ func (t *TeamProxy) Delete(ctx context.Context, model models.TeamResourceModel) 
 		OrgDeleteTeam(ctx, res.GetId()).
 		Execute()
 	if err != nil {
-		diags.Append(ToDiagnosticError(err, "Error Deleting Gitea team."))
+		diags.Append(toDiagnosticError(err, "Error Deleting Gitea team."))
 	}
 
 	return diags

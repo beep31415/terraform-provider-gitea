@@ -12,14 +12,14 @@ func GetApiInitError(err error) string {
 	return getAPIErrorMessage(err)
 }
 
-func ToDiagnosticError(err error, title string) diag.Diagnostic {
+func toDiagnosticError(err error, title string) diag.Diagnostic {
 	return diag.NewErrorDiagnostic(
 		title,
 		getAPIErrorMessage(err),
 	)
 }
 
-func ToDiagnosticArrayError(err error, title string) diag.Diagnostics {
+func toDiagnosticArrayError(err error, title string) diag.Diagnostics {
 	return diag.Diagnostics{
 		diag.NewErrorDiagnostic(
 			title,

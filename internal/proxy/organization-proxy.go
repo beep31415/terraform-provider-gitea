@@ -25,7 +25,7 @@ func NewOrganizationProxy(client *api.APIClient) *OrganizationProxy {
 func (o *OrganizationProxy) FillDataSource(ctx context.Context, model models.OrganizationDataSourceModel) diag.Diagnostic {
 	res, err := o.getByName(ctx, model.Name.ValueString())
 	if err != nil {
-		return ToDiagnosticError(err, "Error Reading Gitea organization.")
+		return toDiagnosticError(err, "Error Reading Gitea organization.")
 	}
 
 	o.converter.ReadToDataSource(model, res)
@@ -36,7 +36,7 @@ func (o *OrganizationProxy) FillDataSource(ctx context.Context, model models.Org
 func (o *OrganizationProxy) FillResource(ctx context.Context, model models.OrganizationResourceModel) diag.Diagnostic {
 	res, err := o.getByName(ctx, model.Name.ValueString())
 	if err != nil {
-		return ToDiagnosticError(err, "Error Reading Gitea organization.")
+		return toDiagnosticError(err, "Error Reading Gitea organization.")
 	}
 
 	o.converter.ReadToResource(model, res)
@@ -52,7 +52,7 @@ func (o *OrganizationProxy) Create(ctx context.Context, model models.Organizatio
 		Organization(option).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Creating Gitea organization.")
+		return toDiagnosticError(err, "Error Creating Gitea organization.")
 	}
 
 	o.converter.ReadToResource(model, res)
@@ -68,7 +68,7 @@ func (o *OrganizationProxy) Edit(ctx context.Context, model models.OrganizationR
 		Body(option).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Updating Gitea organization.")
+		return toDiagnosticError(err, "Error Updating Gitea organization.")
 	}
 
 	o.converter.ReadToResource(model, res)
@@ -83,14 +83,14 @@ func (o *OrganizationProxy) Delete(ctx context.Context, model models.Organizatio
 			return nil
 		}
 
-		return ToDiagnosticError(err, "Error Deleting Gitea organization.")
+		return toDiagnosticError(err, "Error Deleting Gitea organization.")
 	}
 
 	_, err = o.client.OrganizationAPI.
 		OrgDelete(ctx, res.GetName()).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Deleting Gitea organization.")
+		return toDiagnosticError(err, "Error Deleting Gitea organization.")
 	}
 
 	return nil

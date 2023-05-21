@@ -27,7 +27,7 @@ func (u *UserProxy) FillDataSource(ctx context.Context, model models.UserDataSou
 		UserGet(ctx, strings.ToLower(model.Name.ValueString())).
 		Execute()
 	if err != nil {
-		return ToDiagnosticError(err, "Error Reading Gitea user.")
+		return toDiagnosticError(err, "Error Reading Gitea user.")
 	}
 
 	u.converter.ReadToDataSource(model, res)
