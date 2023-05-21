@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"terraform-provider-gitea/api"
+
+	"terraform-provider-gitea/internal/proxy/api"
 )
 
 var base_url string
