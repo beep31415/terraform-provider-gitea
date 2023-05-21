@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var (
@@ -27,7 +26,8 @@ var (
 )
 
 type repoResource struct {
-	client *api.APIClient
+	client            *api.APIClient
+	repositoryAdapter *adapters.RepositoryAdapter
 }
 
 func NewRepoResource() resource.Resource {
@@ -265,6 +265,7 @@ func (r *repoResource) Configure(_ context.Context, req resource.ConfigureReques
 	}
 
 	r.client = req.ProviderData.(*api.APIClient)
+	r.repositoryAdapter = adapters.NewRepositorydapter(r.client)
 }
 
 func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -274,38 +275,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	owner := plan.Owner.ValueString()
-
-	org, err := r.getOrgByName(ctx, owner)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating Gitea repository.",
-			"Could not check if owner is an organization for "+owner+": "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	opts := api.CreateRepoOption{
-		Name:          plan.Name.ValueString(),
-		AutoInit:      plan.AutoInit.ValueBoolPointer(),
-		DefaultBranch: plan.DefaultBranch.ValueStringPointer(),
-		Description:   plan.Description.ValueStringPointer(),
-		Gitignores:    plan.Gitignores.ValueStringPointer(),
-		IssueLabels:   plan.IssueLabels.ValueStringPointer(),
-		License:       plan.License.ValueStringPointer(),
-		Private:       plan.Private.ValueBoolPointer(),
-		Readme:        plan.Readme.ValueStringPointer(),
-		Template:      plan.Template.ValueBoolPointer(),
-		TrustModel:    plan.TrustModel.ValueStringPointer(),
-	}
-
-	var res *api.Repository
-	if org != nil {
-		res, err = r.createOrgRepo(ctx, owner, opts)
-	} else {
-		res, err = r.createCurrentUserRepo(ctx, opts)
-	}
+	res, err := r.repositoryAdapter.Create(ctx, plan.ToApiRepositoryOptions())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating Gitea repository.",
@@ -315,70 +285,7 @@ func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	plan.ID = types.Int64Value(res.GetId())
-	plan.Name = types.StringValue(res.GetName())
-	plan.DefaultBranch = types.StringValue(res.GetDefaultBranch())
-	plan.Description = types.StringValue(res.GetDescription())
-	plan.Private = types.BoolValue(res.GetPrivate())
-	plan.Template = types.BoolValue(res.GetTemplate())
-
-	resEdit, _, err := r.client.RepositoryAPI.
-		RepoEdit(ctx, owner, res.GetName()).
-		Body(api.EditRepoOption{
-			Name:                          plan.Name.ValueStringPointer(),
-			AllowManualMerge:              plan.AllowManualMerge.ValueBoolPointer(),
-			AllowMergeCommits:             plan.AllowMerge.ValueBoolPointer(),
-			AllowRebase:                   plan.AllowRebase.ValueBoolPointer(),
-			AllowRebaseExplicit:           plan.AllowRebaseMerge.ValueBoolPointer(),
-			AllowRebaseUpdate:             plan.AllowRebaseUpdate.ValueBoolPointer(),
-			AllowSquashMerge:              plan.AllowSquash.ValueBoolPointer(),
-			Archived:                      plan.Archived.ValueBoolPointer(),
-			AutodetectManualMerge:         plan.AutodetectManualMerge.ValueBoolPointer(),
-			DefaultAllowMaintainerEdit:    plan.DefaultAllowMaintainerEdit.ValueBoolPointer(),
-			DefaultBranch:                 plan.DefaultBranch.ValueStringPointer(),
-			DefaultDeleteBranchAfterMerge: plan.DefaultDeleteBranchAfterMerge.ValueBoolPointer(),
-			DefaultMergeStyle:             plan.DefaultMergeStyle.ValueStringPointer(),
-			Description:                   plan.Description.ValueStringPointer(),
-			EnablePrune:                   plan.EnablePrune.ValueBoolPointer(),
-			HasIssues:                     plan.HasIssues.ValueBoolPointer(),
-			HasProjects:                   plan.HasProjects.ValueBoolPointer(),
-			HasPullRequests:               plan.HasPullRequests.ValueBoolPointer(),
-			HasWiki:                       plan.HasWiki.ValueBoolPointer(),
-			IgnoreWhitespaceConflicts:     plan.IgnoreWhitespaceConflicts.ValueBoolPointer(),
-			Private:                       plan.Private.ValueBoolPointer(),
-			Template:                      plan.Template.ValueBoolPointer(),
-			Website:                       plan.Website.ValueStringPointer(),
-		}).
-		Execute()
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Error creating Gitea repository.",
-			"Could not update all repository values, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	plan.Name = types.StringValue(resEdit.GetName())
-	plan.AllowMerge = types.BoolValue(resEdit.GetAllowMergeCommits())
-	plan.AllowRebase = types.BoolValue(resEdit.GetAllowRebase())
-	plan.AllowRebaseMerge = types.BoolValue(resEdit.GetAllowRebaseExplicit())
-	plan.AllowRebaseUpdate = types.BoolValue(resEdit.GetAllowRebaseUpdate())
-	plan.AllowSquash = types.BoolValue(resEdit.GetAllowSquashMerge())
-	plan.Archived = types.BoolValue(resEdit.GetArchived())
-	plan.DefaultAllowMaintainerEdit = types.BoolValue(resEdit.GetDefaultAllowMaintainerEdit())
-	plan.DefaultBranch = types.StringValue(resEdit.GetDefaultBranch())
-	plan.DefaultDeleteBranchAfterMerge = types.BoolValue(resEdit.GetDefaultDeleteBranchAfterMerge())
-	plan.DefaultMergeStyle = types.StringValue(resEdit.GetDefaultMergeStyle())
-	plan.Description = types.StringValue(resEdit.GetDescription())
-	plan.HasIssues = types.BoolValue(resEdit.GetHasIssues())
-	plan.HasProjects = types.BoolValue(resEdit.GetHasProjects())
-	plan.HasPullRequests = types.BoolValue(resEdit.GetHasPullRequests())
-	plan.HasWiki = types.BoolValue(resEdit.GetHasWiki())
-	plan.IgnoreWhitespaceConflicts = types.BoolValue(resEdit.GetIgnoreWhitespaceConflicts())
-	plan.Private = types.BoolValue(resEdit.GetPrivate())
-	plan.Template = types.BoolValue(resEdit.GetTemplate())
-	plan.Website = types.StringValue(resEdit.GetWebsite())
+	plan.ReadFromApi(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -393,7 +300,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	res, err := r.getRepositoryByName(ctx, state.Owner.ValueString(), state.Name.ValueString())
+	res, err := r.repositoryAdapter.GetByOwnerAndName(ctx, state.Owner.ValueString(), state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Reading Gitea repository.",
@@ -403,55 +310,7 @@ func (r *repoResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	state.ID = types.Int64Value(res.GetId())
-	state.Name = types.StringValue(res.GetName())
-	state.Owner = types.StringValue(*res.GetOwner().Login)
-	state.DefaultBranch = types.StringValue(res.GetDefaultBranch())
-	state.Description = types.StringValue(res.GetDescription())
-	state.Private = types.BoolValue(res.GetPrivate())
-	state.Template = types.BoolValue(res.GetTemplate())
-	state.AllowMerge = types.BoolValue(res.GetAllowMergeCommits())
-	state.AllowRebase = types.BoolValue(res.GetAllowRebase())
-	state.AllowRebaseMerge = types.BoolValue(res.GetAllowRebaseExplicit())
-	state.AllowRebaseUpdate = types.BoolValue(res.GetAllowRebaseUpdate())
-	state.AllowSquash = types.BoolValue(res.GetAllowSquashMerge())
-	state.Archived = types.BoolValue(res.GetArchived())
-	state.DefaultAllowMaintainerEdit = types.BoolValue(res.GetDefaultAllowMaintainerEdit())
-	state.DefaultDeleteBranchAfterMerge = types.BoolValue(res.GetDefaultDeleteBranchAfterMerge())
-	state.DefaultMergeStyle = types.StringValue(res.GetDefaultMergeStyle())
-	state.HasIssues = types.BoolValue(res.GetHasIssues())
-	state.HasProjects = types.BoolValue(res.GetHasProjects())
-	state.HasPullRequests = types.BoolValue(res.GetHasPullRequests())
-	state.HasWiki = types.BoolValue(res.GetHasWiki())
-	state.IgnoreWhitespaceConflicts = types.BoolValue(res.GetIgnoreWhitespaceConflicts())
-	state.Website = types.StringValue(res.GetWebsite())
-	if state.AutoInit.IsNull() {
-		state.AutoInit = types.BoolValue(false)
-	}
-	if state.Gitignores.IsNull() {
-		state.Gitignores = types.StringValue("")
-	}
-	if state.IssueLabels.IsNull() {
-		state.IssueLabels = types.StringValue("")
-	}
-	if state.License.IsNull() {
-		state.License = types.StringValue("")
-	}
-	if state.Readme.IsNull() {
-		state.Readme = types.StringValue("")
-	}
-	if state.AllowManualMerge.IsNull() {
-		state.AllowManualMerge = types.BoolValue(false)
-	}
-	if state.AutodetectManualMerge.IsNull() {
-		state.AutodetectManualMerge = types.BoolValue(false)
-	}
-	if state.EnablePrune.IsNull() {
-		state.EnablePrune = types.BoolValue(false)
-	}
-	if state.TrustModel.IsNull() {
-		state.TrustModel = types.StringValue("default")
-	}
+	state.ReadFromApi(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
@@ -466,34 +325,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	res, _, err := r.client.RepositoryAPI.
-		RepoEdit(ctx, plan.Owner.ValueString(), plan.Name.ValueString()).
-		Body(api.EditRepoOption{
-			Name:                          plan.Name.ValueStringPointer(),
-			AllowManualMerge:              plan.AllowManualMerge.ValueBoolPointer(),
-			AllowMergeCommits:             plan.AllowMerge.ValueBoolPointer(),
-			AllowRebase:                   plan.AllowRebase.ValueBoolPointer(),
-			AllowRebaseExplicit:           plan.AllowRebaseMerge.ValueBoolPointer(),
-			AllowRebaseUpdate:             plan.AllowRebaseUpdate.ValueBoolPointer(),
-			AllowSquashMerge:              plan.AllowSquash.ValueBoolPointer(),
-			Archived:                      plan.Archived.ValueBoolPointer(),
-			AutodetectManualMerge:         plan.AutodetectManualMerge.ValueBoolPointer(),
-			DefaultAllowMaintainerEdit:    plan.DefaultAllowMaintainerEdit.ValueBoolPointer(),
-			DefaultBranch:                 plan.DefaultBranch.ValueStringPointer(),
-			DefaultDeleteBranchAfterMerge: plan.DefaultDeleteBranchAfterMerge.ValueBoolPointer(),
-			DefaultMergeStyle:             plan.DefaultMergeStyle.ValueStringPointer(),
-			Description:                   plan.Description.ValueStringPointer(),
-			EnablePrune:                   plan.EnablePrune.ValueBoolPointer(),
-			HasIssues:                     plan.HasIssues.ValueBoolPointer(),
-			HasProjects:                   plan.HasProjects.ValueBoolPointer(),
-			HasPullRequests:               plan.HasPullRequests.ValueBoolPointer(),
-			HasWiki:                       plan.HasWiki.ValueBoolPointer(),
-			IgnoreWhitespaceConflicts:     plan.IgnoreWhitespaceConflicts.ValueBoolPointer(),
-			Private:                       plan.Private.ValueBoolPointer(),
-			Template:                      plan.Template.ValueBoolPointer(),
-			Website:                       plan.Website.ValueStringPointer(),
-		}).
-		Execute()
+	res, err := r.repositoryAdapter.Edit(ctx, plan.ToApiRepositoryOptions())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error updating Gitea repository.",
@@ -503,28 +335,7 @@ func (r *repoResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	plan.ID = types.Int64Value(res.GetId())
-	plan.Name = types.StringValue(res.GetName())
-	plan.Owner = types.StringValue(*res.GetOwner().Login)
-	plan.DefaultBranch = types.StringValue(res.GetDefaultBranch())
-	plan.Description = types.StringValue(res.GetDescription())
-	plan.Private = types.BoolValue(res.GetPrivate())
-	plan.Template = types.BoolValue(res.GetTemplate())
-	plan.AllowMerge = types.BoolValue(res.GetAllowMergeCommits())
-	plan.AllowRebase = types.BoolValue(res.GetAllowRebase())
-	plan.AllowRebaseMerge = types.BoolValue(res.GetAllowRebaseExplicit())
-	plan.AllowRebaseUpdate = types.BoolValue(res.GetAllowRebaseUpdate())
-	plan.AllowSquash = types.BoolValue(res.GetAllowSquashMerge())
-	plan.Archived = types.BoolValue(res.GetArchived())
-	plan.DefaultAllowMaintainerEdit = types.BoolValue(res.GetDefaultAllowMaintainerEdit())
-	plan.DefaultDeleteBranchAfterMerge = types.BoolValue(res.GetDefaultDeleteBranchAfterMerge())
-	plan.DefaultMergeStyle = types.StringValue(res.GetDefaultMergeStyle())
-	plan.HasIssues = types.BoolValue(res.GetHasIssues())
-	plan.HasProjects = types.BoolValue(res.GetHasProjects())
-	plan.HasPullRequests = types.BoolValue(res.GetHasPullRequests())
-	plan.HasWiki = types.BoolValue(res.GetHasWiki())
-	plan.IgnoreWhitespaceConflicts = types.BoolValue(res.GetIgnoreWhitespaceConflicts())
-	plan.Website = types.StringValue(res.GetWebsite())
+	plan.ReadFromApi(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
@@ -539,23 +350,7 @@ func (r *repoResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	res, err := r.getRepositoryById(ctx, state.ID.ValueInt64())
-	if err != nil {
-		if adapters.IsErrorNotFound(err) {
-			return
-		}
-
-		resp.Diagnostics.AddError(
-			"Error Delete Gitea repository.",
-			"Could not get repository to delete, unexpected error: "+adapters.GetAPIErrorMessage(err),
-		)
-
-		return
-	}
-
-	_, err = r.client.RepositoryAPI.
-		RepoDelete(ctx, *res.GetOwner().Login, res.GetName()).
-		Execute()
+	err := r.repositoryAdapter.Delete(ctx, state.ID.ValueInt64())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Deleting Gitea repository.",
@@ -579,51 +374,4 @@ func (r *repoResource) ImportState(ctx context.Context, req resource.ImportState
 
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("owner"), ids[0])...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), ids[1])...)
-}
-
-func (r *repoResource) getRepositoryById(ctx context.Context, id int64) (*api.Repository, error) {
-	res, _, err := r.client.RepositoryAPI.
-		RepoGetByID(ctx, id).
-		Execute()
-
-	return res, err
-}
-
-func (r *repoResource) getRepositoryByName(ctx context.Context, owner, repo string) (*api.Repository, error) {
-	res, _, err := r.client.RepositoryAPI.
-		RepoGet(ctx, owner, repo).
-		Execute()
-
-	return res, err
-}
-
-func (r *repoResource) createOrgRepo(ctx context.Context, org string, opts api.CreateRepoOption) (*api.Repository, error) {
-	res, _, err := r.client.OrganizationAPI.
-		CreateOrgRepo(ctx, org).
-		Body(opts).
-		Execute()
-
-	return res, err
-}
-
-func (r *repoResource) createCurrentUserRepo(ctx context.Context, opts api.CreateRepoOption) (*api.Repository, error) {
-	res, _, err := r.client.RepositoryAPI.
-		CreateCurrentUserRepo(ctx).
-		Body(opts).
-		Execute()
-
-	return res, err
-}
-
-func (r *repoResource) getOrgByName(ctx context.Context, name string) (*api.Organization, error) {
-	res, _, err := r.client.OrganizationAPI.
-		OrgGet(ctx, name).
-		Execute()
-
-	if adapters.IsErrorNotFound(err) {
-		res = nil
-		err = nil
-	}
-
-	return res, err
 }

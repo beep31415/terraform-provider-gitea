@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var (
@@ -19,7 +18,8 @@ var (
 )
 
 type repoDataSource struct {
-	client *api.APIClient
+	client            *api.APIClient
+	repositoryAdapter *adapters.RepositoryAdapter
 }
 
 func NewRepoDataSource() datasource.DataSource {
@@ -231,6 +231,7 @@ func (d *repoDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 	}
 
 	d.client = req.ProviderData.(*api.APIClient)
+	d.repositoryAdapter = adapters.NewRepositorydapter(d.client)
 }
 
 func (d *repoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -240,9 +241,8 @@ func (d *repoDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	res, _, err := d.client.RepositoryAPI.
-		RepoGet(ctx, strings.ToLower(state.Owner.ValueString()), strings.ToLower(state.Name.ValueString())).
-		Execute()
+	res, err := d.repositoryAdapter.GetByOwnerAndName(ctx,
+		strings.ToLower(state.Owner.ValueString()), strings.ToLower(state.Name.ValueString()))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea repository.",
@@ -252,54 +252,7 @@ func (d *repoDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	state = models.RepositoryDataSourceModel{
-		ID:                            types.Int64Value(res.GetId()),
-		Owner:                         types.StringValue(*res.GetOwner().Login),
-		Name:                          types.StringValue(res.GetName()),
-		AllowMerge:                    types.BoolValue(res.GetAllowMergeCommits()),
-		AllowRebase:                   types.BoolValue(res.GetAllowRebase()),
-		AllowRebaseMerge:              types.BoolValue(res.GetAllowRebaseExplicit()),
-		AllowRebaseUpdate:             types.BoolValue(res.GetAllowRebaseUpdate()),
-		AllowSquash:                   types.BoolValue(res.GetAllowSquashMerge()),
-		Archived:                      types.BoolValue(res.GetArchived()),
-		AvatarURL:                     types.StringValue(res.GetAvatarUrl()),
-		CloneURL:                      types.StringValue(res.GetCloneUrl()),
-		Created:                       types.StringValue(res.GetCreatedAt().String()),
-		DefaultAllowMaintainerEdit:    types.BoolValue(res.GetDefaultAllowMaintainerEdit()),
-		DefaultBranch:                 types.StringValue(res.GetDefaultBranch()),
-		DefaultDeleteBranchAfterMerge: types.BoolValue(res.GetDefaultDeleteBranchAfterMerge()),
-		DefaultMergeStyle:             types.StringValue(res.GetDefaultMergeStyle()),
-		Description:                   types.StringValue(res.GetDescription()),
-		Empty:                         types.BoolValue(res.GetEmpty()),
-		Fork:                          types.BoolValue(res.GetFork()),
-		Forks:                         types.Int64Value(res.GetForksCount()),
-		FullName:                      types.StringValue(res.GetFullName()),
-		HTMLURL:                       types.StringValue(res.GetHtmlUrl()),
-		HasIssues:                     types.BoolValue(res.GetHasIssues()),
-		HasProjects:                   types.BoolValue(res.GetHasProjects()),
-		HasPullRequests:               types.BoolValue(res.GetHasPullRequests()),
-		HasWiki:                       types.BoolValue(res.GetHasWiki()),
-		IgnoreWhitespaceConflicts:     types.BoolValue(res.GetIgnoreWhitespaceConflicts()),
-		Internal:                      types.BoolValue(res.GetInternal()),
-		Language:                      types.StringValue(res.GetLanguage()),
-		LanguagesURL:                  types.StringValue(res.GetLanguagesUrl()),
-		Link:                          types.StringValue(res.GetLink()),
-		Mirror:                        types.BoolValue(res.GetMirror()),
-		MirrorInterval:                types.StringValue(res.GetMirrorInterval()),
-		MirrorUpdated:                 types.StringValue(res.GetMirrorUpdated().String()),
-		OpenIssues:                    types.Int64Value(res.GetOpenIssuesCount()),
-		OpenPulls:                     types.Int64Value(res.GetOpenPrCounter()),
-		OriginalURL:                   types.StringValue(res.GetOriginalUrl()),
-		Private:                       types.BoolValue(res.GetPrivate()),
-		Releases:                      types.Int64Value(res.GetReleaseCounter()),
-		SSHURL:                        types.StringValue(res.GetSshUrl()),
-		Size:                          types.Int64Value(res.GetSize()),
-		Stars:                         types.Int64Value(res.GetStarsCount()),
-		Template:                      types.BoolValue(res.GetTemplate()),
-		Updated:                       types.StringValue(res.GetUpdatedAt().String()),
-		Watchers:                      types.Int64Value(res.GetWatchersCount()),
-		Website:                       types.StringValue(res.GetWebsite()),
-	}
+	state = models.NewRepositoryDataSource(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
