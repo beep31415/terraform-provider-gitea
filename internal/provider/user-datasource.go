@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"strings"
 
 	"terraform-provider-gitea/api"
 	"terraform-provider-gitea/internal/adapters"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var (
@@ -19,7 +17,8 @@ var (
 )
 
 type userDataSource struct {
-	client *api.APIClient
+	client      *api.APIClient
+	userAdapter adapters.UserAdapter
 }
 
 func NewUserDataSource() datasource.DataSource {
@@ -88,6 +87,7 @@ func (d *userDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 	}
 
 	d.client = req.ProviderData.(*api.APIClient)
+	d.userAdapter = *adapters.NewUserAdapter(d.client)
 }
 
 func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -97,9 +97,7 @@ func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	res, _, err := d.client.UserAPI.
-		UserGet(ctx, strings.ToLower(state.Name.ValueString())).
-		Execute()
+	res, err := d.userAdapter.GetByName(ctx, state.Name.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Gitea user.",
@@ -108,19 +106,7 @@ func (d *userDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	state = models.UserDataSourceModel{
-		ID:            types.Int64Value(res.GetId()),
-		Name:          types.StringValue(res.GetLogin()),
-		LoginName:     types.StringValue(res.GetLoginName()),
-		Email:         types.StringValue(res.GetEmail()),
-		IsAdmin:       types.BoolValue(res.GetIsAdmin()),
-		IsActive:      types.BoolValue(res.GetActive()),
-		ProhibitLogin: types.BoolValue(res.GetProhibitLogin()),
-		Restricted:    types.BoolValue(res.GetRestricted()),
-		Visibility:    types.StringValue(res.GetVisibility()),
-		LastLogin:     types.StringValue(res.GetLastLogin().String()),
-		Created:       types.StringValue(res.GetCreated().String()),
-	}
+	state = models.NewUserDataSource(res)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
