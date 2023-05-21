@@ -23,11 +23,6 @@ type teamDataSource struct {
 	teamAdapter *adapters.TeamAdapter
 }
 
-type teamUnitDataSource struct {
-	Name       types.String `tfsdk:"name"`
-	Permission types.String `tfsdk:"permission"`
-}
-
 func NewTeamDataSource() datasource.DataSource {
 	return &teamDataSource{}
 }
