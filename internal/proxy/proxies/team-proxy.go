@@ -84,6 +84,8 @@ func (t *TeamProxy) Create(ctx context.Context, model *models.TeamResourceModel)
 		}
 	}
 
+	diags.Append(t.converter.ReadMembersToResource(ctx, model, members)...)
+
 	return diags
 }
 
@@ -125,6 +127,8 @@ func (t *TeamProxy) Update(ctx context.Context, model *models.TeamResourceModel)
 			diags.Append(errors.ToDiagnosticError(err, "Error Updating Gitea team."))
 		}
 	}
+
+	diags.Append(t.converter.ReadMembersToResource(ctx, model, members)...)
 
 	return diags
 }
