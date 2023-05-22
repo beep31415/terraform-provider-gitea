@@ -7,7 +7,7 @@ import (
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy/api"
 	"terraform-provider-gitea/internal/proxy/converters"
-	"terraform-provider-gitea/pkg/arrays"
+	"terraform-provider-gitea/pkg/collections"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
@@ -109,21 +109,19 @@ func (t *TeamProxy) Edit(ctx context.Context, model models.TeamResourceModel) di
 		return diags
 	}
 
-	for _, member := range existingMemberList {
-		if !arrays.Contains(member, members...) {
-			err = t.removeMember(ctx, res.GetId(), member)
-			if err != nil {
-				diags.Append(toDiagnosticError(err, "Error Updating Gitea team."))
-			}
+	toAdd, toRemove := collections.GetChanges(existingMemberList, members)
+
+	for _, member := range toRemove {
+		err = t.removeMember(ctx, res.GetId(), member)
+		if err != nil {
+			diags.Append(toDiagnosticError(err, "Error Updating Gitea team."))
 		}
 	}
 
-	for _, member := range members {
-		if !arrays.Contains(member, existingMemberList...) {
-			err = t.addMember(ctx, res.GetId(), member)
-			if err != nil {
-				diags.Append(toDiagnosticError(err, "Error Updating Gitea team."))
-			}
+	for _, member := range toAdd {
+		err = t.addMember(ctx, res.GetId(), member)
+		if err != nil {
+			diags.Append(toDiagnosticError(err, "Error Updating Gitea team."))
 		}
 	}
 

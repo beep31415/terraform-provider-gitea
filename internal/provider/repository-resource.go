@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"terraform-provider-gitea/internal/models"
-	"terraform-provider-gitea/internal/plans"
 	"terraform-provider-gitea/internal/proxy"
 	"terraform-provider-gitea/internal/proxy/api"
+	"terraform-provider-gitea/pkg/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
