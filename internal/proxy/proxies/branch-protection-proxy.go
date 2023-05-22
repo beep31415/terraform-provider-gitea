@@ -23,7 +23,7 @@ func NewBranchProtectionProxy(client *api.APIClient) *branchProtectionProxy {
 	}
 }
 
-func (b *branchProtectionProxy) FillDataSource(ctx context.Context, model models.BranchProtectionDataSourceModel) diag.Diagnostics {
+func (b *branchProtectionProxy) FillDataSource(ctx context.Context, model *models.BranchProtectionDataSourceModel) diag.Diagnostics {
 	res, err := b.getByOwnerRepoAndBranchName(ctx,
 		model.Owner.ValueString(), model.Repo.ValueString(), model.BranchName.ValueString())
 	if err != nil {
@@ -33,7 +33,7 @@ func (b *branchProtectionProxy) FillDataSource(ctx context.Context, model models
 	return b.converter.ReadToDataSource(ctx, model, res)
 }
 
-func (b *branchProtectionProxy) FillResource(ctx context.Context, model models.BranchProtectionResourceModel) diag.Diagnostics {
+func (b *branchProtectionProxy) FillResource(ctx context.Context, model *models.BranchProtectionResourceModel) diag.Diagnostics {
 	res, err := b.getByOwnerRepoAndBranchName(ctx,
 		model.Owner.ValueString(), model.Repo.ValueString(), model.BranchName.ValueString())
 	if err != nil {
@@ -43,8 +43,8 @@ func (b *branchProtectionProxy) FillResource(ctx context.Context, model models.B
 	return b.converter.ReadToResource(ctx, model, res)
 }
 
-func (b *branchProtectionProxy) Create(ctx context.Context, model models.BranchProtectionResourceModel) diag.Diagnostics {
-	option, diags := b.converter.ToApiAddBranchProtectionOptions(ctx, model)
+func (b *branchProtectionProxy) Create(ctx context.Context, model *models.BranchProtectionResourceModel) diag.Diagnostics {
+	option, diags := b.converter.ToApiAddBranchProtectionOptions(ctx, *model)
 	if diags.HasError() {
 		return diags
 	}
@@ -60,8 +60,8 @@ func (b *branchProtectionProxy) Create(ctx context.Context, model models.BranchP
 	return b.converter.ReadToResource(ctx, model, res)
 }
 
-func (b *branchProtectionProxy) Update(ctx context.Context, model models.BranchProtectionResourceModel) diag.Diagnostics {
-	option, diags := b.converter.ToApiEditBranchProtectionOptions(ctx, model)
+func (b *branchProtectionProxy) Update(ctx context.Context, model *models.BranchProtectionResourceModel) diag.Diagnostics {
+	option, diags := b.converter.ToApiEditBranchProtectionOptions(ctx, *model)
 	if diags.HasError() {
 		return diags
 	}
@@ -78,7 +78,7 @@ func (b *branchProtectionProxy) Update(ctx context.Context, model models.BranchP
 	return b.converter.ReadToResource(ctx, model, res)
 }
 
-func (b *branchProtectionProxy) Delete(ctx context.Context, model models.BranchProtectionResourceModel) diag.Diagnostics {
+func (b *branchProtectionProxy) Delete(ctx context.Context, model *models.BranchProtectionResourceModel) diag.Diagnostics {
 	_, err := b.getByOwnerRepoAndBranchName(ctx,
 		model.Owner.ValueString(), model.Repo.ValueString(), model.BranchName.ValueString())
 	if err != nil {

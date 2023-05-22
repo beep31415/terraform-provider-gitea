@@ -17,17 +17,16 @@ var (
 
 type TeamConverter struct{}
 
-func (TeamConverter) ReadToDataSource(model models.TeamDataSourceModel, team *api.Team) {
+func (TeamConverter) ReadToDataSource(model *models.TeamDataSourceModel, team *api.Team) {
 	model.Id = types.Int64Value(team.GetId())
 	model.Name = types.StringValue(team.GetName())
-	model.Organization = types.StringValue(*team.GetOrganization().Name)
 	model.Permission = types.StringValue(team.GetPermission())
 	model.Description = types.StringValue(team.GetDescription())
 	model.CanCreateOrgRepo = types.BoolValue(team.GetCanCreateOrgRepo())
 	model.IncludesAllRepositories = types.BoolValue(team.GetIncludesAllRepositories())
 }
 
-func (TeamConverter) ReadMembersToDataSource(ctx context.Context, model models.TeamDataSourceModel, members []string) diag.Diagnostics {
+func (TeamConverter) ReadMembersToDataSource(ctx context.Context, model *models.TeamDataSourceModel, members []string) diag.Diagnostics {
 	tfMembers, diags := types.ListValueFrom(ctx, types.StringType, members)
 	if diags.HasError() {
 		return diags
@@ -38,17 +37,16 @@ func (TeamConverter) ReadMembersToDataSource(ctx context.Context, model models.T
 	return nil
 }
 
-func (TeamConverter) ReadToResource(model models.TeamResourceModel, team *api.Team) {
+func (TeamConverter) ReadToResource(model *models.TeamResourceModel, team *api.Team) {
 	model.Id = types.Int64Value(team.GetId())
 	model.Name = types.StringValue(team.GetName())
-	model.Organization = types.StringValue(*team.GetOrganization().Name)
 	model.Permission = types.StringValue(team.GetPermission())
 	model.Description = types.StringValue(team.GetDescription())
 	model.CanCreateOrgRepo = types.BoolValue(team.GetCanCreateOrgRepo())
 	model.IncludesAllRepositories = types.BoolValue(team.GetIncludesAllRepositories())
 }
 
-func (TeamConverter) ReadMembersToResource(ctx context.Context, model models.TeamResourceModel, members []string) diag.Diagnostics {
+func (TeamConverter) ReadMembersToResource(ctx context.Context, model *models.TeamResourceModel, members []string) diag.Diagnostics {
 	tfMembers, diags := types.ListValueFrom(ctx, types.StringType, members)
 	if diags.HasError() {
 		return diags

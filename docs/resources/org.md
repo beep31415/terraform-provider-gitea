@@ -22,7 +22,6 @@ Manages a Gitea organization.
 ### Optional
 
 - `description` (String) The organization description.
-- `full_name` (String) The full name of the organisation.
 - `location` (String) The organization location.
 - `repo_admin_change_team_access` (Boolean) Flag that indicates whether admin can change organization team access. Defaults to `true`.
 - `visibility` (String) The organization visibility. Possible values: public, limited or private. Defaults to `public`.

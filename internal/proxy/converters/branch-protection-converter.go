@@ -12,7 +12,7 @@ import (
 type BranchProtectionConverter struct{}
 
 func (BranchProtectionConverter) ReadToDataSource(ctx context.Context,
-	model models.BranchProtectionDataSourceModel,
+	model *models.BranchProtectionDataSourceModel,
 	branchProtection *api.BranchProtection) diag.Diagnostics {
 
 	approvalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetApprovalsWhitelistUsername())
@@ -52,7 +52,7 @@ func (BranchProtectionConverter) ReadToDataSource(ctx context.Context,
 }
 
 func (BranchProtectionConverter) ReadToResource(ctx context.Context,
-	model models.BranchProtectionResourceModel,
+	model *models.BranchProtectionResourceModel,
 	branchProtection *api.BranchProtection) diag.Diagnostics {
 
 	tfApprovalWhiteList, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetApprovalsWhitelistUsername())

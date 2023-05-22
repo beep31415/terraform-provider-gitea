@@ -42,7 +42,7 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state)...)
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

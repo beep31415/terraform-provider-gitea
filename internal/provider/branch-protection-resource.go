@@ -55,7 +55,7 @@ func (r *branchProtectionResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Create(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Create(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -73,7 +73,7 @@ func (r *branchProtectionResource) Read(ctx context.Context, req resource.ReadRe
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state)...)
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -91,7 +91,7 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Update(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Update(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -109,7 +109,7 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Delete(ctx, state)...)
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, &state)...)
 }
 
 func (r *branchProtectionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

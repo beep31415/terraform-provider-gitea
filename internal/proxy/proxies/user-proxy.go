@@ -23,7 +23,7 @@ func NewUserProxy(client *api.APIClient) *UserProxy {
 	}
 }
 
-func (u *UserProxy) FillDataSource(ctx context.Context, model models.UserDataSourceModel) diag.Diagnostics {
+func (u *UserProxy) FillDataSource(ctx context.Context, model *models.UserDataSourceModel) diag.Diagnostics {
 	res, _, err := u.client.UserAPI.
 		UserGet(ctx, strings.ToLower(model.Name.ValueString())).
 		Execute()

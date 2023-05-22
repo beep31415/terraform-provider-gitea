@@ -55,7 +55,7 @@ func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Create(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Create(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -73,7 +73,7 @@ func (r *teamResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state)...)
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -91,7 +91,7 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Update(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Update(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -109,7 +109,7 @@ func (r *teamResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Delete(ctx, state)...)
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, &state)...)
 }
 
 func (r *teamResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

@@ -43,7 +43,7 @@ func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state)...)
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -23,7 +23,7 @@ func NewRepositoryProxy(client *api.APIClient) *RepositoryProxy {
 	}
 }
 
-func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.RepositoryDataSourceModel) diag.Diagnostics {
+func (r *RepositoryProxy) FillDataSource(ctx context.Context, model *models.RepositoryDataSourceModel) diag.Diagnostics {
 	res, err := r.getByOwnerAndName(ctx, model.Owner.ValueString(), model.Name.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea repository.")
@@ -34,7 +34,7 @@ func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.Repos
 	return nil
 }
 
-func (r *RepositoryProxy) FillResource(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
+func (r *RepositoryProxy) FillResource(ctx context.Context, model *models.RepositoryResourceModel) diag.Diagnostics {
 	res, err := r.getByOwnerAndName(ctx, model.Owner.ValueString(), model.Name.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea repository.")
@@ -45,13 +45,13 @@ func (r *RepositoryProxy) FillResource(ctx context.Context, model models.Reposit
 	return nil
 }
 
-func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
+func (r *RepositoryProxy) Create(ctx context.Context, model *models.RepositoryResourceModel) diag.Diagnostics {
 	org, err := r.getOrgByName(ctx, model.Owner.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Creating Gitea repository.")
 	}
 
-	createOptions := r.converter.ToApiAddRepositoryOptions(model)
+	createOptions := r.converter.ToApiAddRepositoryOptions(*model)
 	var res *api.Repository
 
 	if org != nil {
@@ -68,8 +68,8 @@ func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryRes
 	return r.Update(ctx, model)
 }
 
-func (r *RepositoryProxy) Update(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
-	editOptions := r.converter.ToApiEditRepositoryOptions(model)
+func (r *RepositoryProxy) Update(ctx context.Context, model *models.RepositoryResourceModel) diag.Diagnostics {
+	editOptions := r.converter.ToApiEditRepositoryOptions(*model)
 
 	res, _, err := r.client.RepositoryAPI.
 		RepoEdit(ctx, model.Owner.ValueString(), model.Name.ValueString()).
@@ -84,7 +84,7 @@ func (r *RepositoryProxy) Update(ctx context.Context, model models.RepositoryRes
 	return nil
 }
 
-func (r *RepositoryProxy) Delete(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
+func (r *RepositoryProxy) Delete(ctx context.Context, model *models.RepositoryResourceModel) diag.Diagnostics {
 	res, err := r.getById(ctx, model.ID.ValueInt64())
 	if err != nil {
 		if errors.IsErrorNotFound(err) {

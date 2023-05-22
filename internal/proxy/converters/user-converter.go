@@ -9,7 +9,7 @@ import (
 
 type UserConverter struct{}
 
-func (UserConverter) ReadToDataSource(model models.UserDataSourceModel, user *api.User) {
+func (UserConverter) ReadToDataSource(model *models.UserDataSourceModel, user *api.User) {
 	model.ID = types.Int64Value(user.GetId())
 	model.Name = types.StringValue(user.GetLogin())
 	model.LoginName = types.StringValue(user.GetLoginName())

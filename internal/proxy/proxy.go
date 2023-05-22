@@ -17,14 +17,14 @@ import (
 )
 
 type ProxyDataSource[T any] interface {
-	FillDataSource(ctx context.Context, model T) diag.Diagnostics
+	FillDataSource(ctx context.Context, model *T) diag.Diagnostics
 }
 
 type ProxyResource[T any] interface {
-	FillResource(ctx context.Context, model T) diag.Diagnostics
-	Create(ctx context.Context, model T) diag.Diagnostics
-	Update(ctx context.Context, model T) diag.Diagnostics
-	Delete(ctx context.Context, model T) diag.Diagnostics
+	FillResource(ctx context.Context, model *T) diag.Diagnostics
+	Create(ctx context.Context, model *T) diag.Diagnostics
+	Update(ctx context.Context, model *T) diag.Diagnostics
+	Delete(ctx context.Context, model *T) diag.Diagnostics
 }
 
 type Factory struct {

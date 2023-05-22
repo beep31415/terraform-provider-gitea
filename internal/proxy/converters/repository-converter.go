@@ -9,7 +9,7 @@ import (
 
 type RepositoryConverter struct{}
 
-func (RepositoryConverter) ReadToDataSource(model models.RepositoryDataSourceModel, repository *api.Repository) {
+func (RepositoryConverter) ReadToDataSource(model *models.RepositoryDataSourceModel, repository *api.Repository) {
 	model.ID = types.Int64Value(repository.GetId())
 	model.Owner = types.StringValue(*repository.GetOwner().Login)
 	model.Name = types.StringValue(repository.GetName())
@@ -58,7 +58,7 @@ func (RepositoryConverter) ReadToDataSource(model models.RepositoryDataSourceMod
 	model.Website = types.StringValue(repository.GetWebsite())
 }
 
-func (RepositoryConverter) ReadToResource(model models.RepositoryResourceModel, repository *api.Repository) {
+func (RepositoryConverter) ReadToResource(model *models.RepositoryResourceModel, repository *api.Repository) {
 	model.ID = types.Int64Value(repository.GetId())
 	model.Name = types.StringValue(repository.GetName())
 	model.Owner = types.StringValue(*repository.GetOwner().Login)

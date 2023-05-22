@@ -43,7 +43,7 @@ func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.Re
 		return
 	}
 
-	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state)...)
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

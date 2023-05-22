@@ -51,7 +51,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Create(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Create(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -69,7 +69,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state)...)
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -87,7 +87,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Update(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Update(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -105,7 +105,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Delete(ctx, state)...)
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, &state)...)
 }
 
 func (r *orgResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -129,12 +129,6 @@ func (d *orgResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				PlanModifiers: []planmodifier.String{
 					plans.NewApiUpdateNotSupported(),
 				},
-			},
-			"full_name": schema.StringAttribute{
-				Description: "The full name of the organisation.",
-				Computed:    true,
-				Optional:    true,
-				Default:     stringdefault.StaticString(""),
 			},
 			"description": schema.StringAttribute{
 				Description: "The organization description.",

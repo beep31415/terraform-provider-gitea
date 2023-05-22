@@ -7,7 +7,6 @@ import (
 type OrganizationResourceModel struct {
 	ID                    types.Int64  `tfsdk:"id"`
 	Name                  types.String `tfsdk:"name"`
-	FullName              types.String `tfsdk:"full_name"`
 	Description           types.String `tfsdk:"description"`
 	Website               types.String `tfsdk:"website"`
 	Location              types.String `tfsdk:"location"`

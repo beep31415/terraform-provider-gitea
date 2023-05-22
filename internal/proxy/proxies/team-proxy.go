@@ -25,7 +25,7 @@ func NewTeamProxy(client *api.APIClient) *TeamProxy {
 	}
 }
 
-func (t *TeamProxy) FillDataSource(ctx context.Context, model models.TeamDataSourceModel) diag.Diagnostics {
+func (t *TeamProxy) FillDataSource(ctx context.Context, model *models.TeamDataSourceModel) diag.Diagnostics {
 	res, err := t.getByOrgAndName(ctx, model.Organization.ValueString(), model.Name.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea team.")
@@ -42,7 +42,7 @@ func (t *TeamProxy) FillDataSource(ctx context.Context, model models.TeamDataSou
 	return t.converter.ReadMembersToDataSource(ctx, model, members)
 }
 
-func (t *TeamProxy) FillResource(ctx context.Context, model models.TeamResourceModel) diag.Diagnostics {
+func (t *TeamProxy) FillResource(ctx context.Context, model *models.TeamResourceModel) diag.Diagnostics {
 	res, err := t.getByOrgAndName(ctx, model.Organization.ValueString(), model.Name.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea team.")
@@ -59,8 +59,8 @@ func (t *TeamProxy) FillResource(ctx context.Context, model models.TeamResourceM
 	return t.converter.ReadMembersToResource(ctx, model, members)
 }
 
-func (t *TeamProxy) Create(ctx context.Context, model models.TeamResourceModel) diag.Diagnostics {
-	option := t.converter.ToApiAddTeamOptions(model)
+func (t *TeamProxy) Create(ctx context.Context, model *models.TeamResourceModel) diag.Diagnostics {
+	option := t.converter.ToApiAddTeamOptions(*model)
 
 	res, _, err := t.client.OrganizationAPI.
 		OrgCreateTeam(ctx, model.Organization.ValueString()).
@@ -87,8 +87,8 @@ func (t *TeamProxy) Create(ctx context.Context, model models.TeamResourceModel) 
 	return diags
 }
 
-func (t *TeamProxy) Update(ctx context.Context, model models.TeamResourceModel) diag.Diagnostics {
-	option := t.converter.ToApiEditTeamOptions(model)
+func (t *TeamProxy) Update(ctx context.Context, model *models.TeamResourceModel) diag.Diagnostics {
+	option := t.converter.ToApiEditTeamOptions(*model)
 
 	res, _, err := t.client.OrganizationAPI.
 		OrgEditTeam(ctx, int32(model.Id.ValueInt64())).
@@ -129,7 +129,7 @@ func (t *TeamProxy) Update(ctx context.Context, model models.TeamResourceModel) 
 	return diags
 }
 
-func (t *TeamProxy) Delete(ctx context.Context, model models.TeamResourceModel) diag.Diagnostics {
+func (t *TeamProxy) Delete(ctx context.Context, model *models.TeamResourceModel) diag.Diagnostics {
 	res, err := t.getById(ctx, model.Id.ValueInt64())
 	if err != nil {
 		if errors.IsErrorNotFound(err) {

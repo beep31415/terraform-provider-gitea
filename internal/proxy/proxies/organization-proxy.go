@@ -23,7 +23,7 @@ func NewOrganizationProxy(client *api.APIClient) *OrganizationProxy {
 	}
 }
 
-func (o *OrganizationProxy) FillDataSource(ctx context.Context, model models.OrganizationDataSourceModel) diag.Diagnostics {
+func (o *OrganizationProxy) FillDataSource(ctx context.Context, model *models.OrganizationDataSourceModel) diag.Diagnostics {
 	res, err := o.getByName(ctx, model.Name.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea organization.")
@@ -34,7 +34,7 @@ func (o *OrganizationProxy) FillDataSource(ctx context.Context, model models.Org
 	return nil
 }
 
-func (o *OrganizationProxy) FillResource(ctx context.Context, model models.OrganizationResourceModel) diag.Diagnostics {
+func (o *OrganizationProxy) FillResource(ctx context.Context, model *models.OrganizationResourceModel) diag.Diagnostics {
 	res, err := o.getByName(ctx, model.Name.ValueString())
 	if err != nil {
 		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea organization.")
@@ -45,8 +45,8 @@ func (o *OrganizationProxy) FillResource(ctx context.Context, model models.Organ
 	return nil
 }
 
-func (o *OrganizationProxy) Create(ctx context.Context, model models.OrganizationResourceModel) diag.Diagnostics {
-	option := o.converter.ToApiAddOrganizationOptions(model)
+func (o *OrganizationProxy) Create(ctx context.Context, model *models.OrganizationResourceModel) diag.Diagnostics {
+	option := o.converter.ToApiAddOrganizationOptions(*model)
 
 	res, _, err := o.client.OrganizationAPI.
 		OrgCreate(ctx).
@@ -61,8 +61,8 @@ func (o *OrganizationProxy) Create(ctx context.Context, model models.Organizatio
 	return nil
 }
 
-func (o *OrganizationProxy) Update(ctx context.Context, model models.OrganizationResourceModel) diag.Diagnostics {
-	option := o.converter.ToApiEditOrganizationOptions(model)
+func (o *OrganizationProxy) Update(ctx context.Context, model *models.OrganizationResourceModel) diag.Diagnostics {
+	option := o.converter.ToApiEditOrganizationOptions(*model)
 
 	res, _, err := o.client.OrganizationAPI.
 		OrgEdit(ctx, model.Name.ValueString()).
@@ -77,7 +77,7 @@ func (o *OrganizationProxy) Update(ctx context.Context, model models.Organizatio
 	return nil
 }
 
-func (o *OrganizationProxy) Delete(ctx context.Context, model models.OrganizationResourceModel) diag.Diagnostics {
+func (o *OrganizationProxy) Delete(ctx context.Context, model *models.OrganizationResourceModel) diag.Diagnostics {
 	res, err := o.getByName(ctx, model.Name.ValueString())
 	if err != nil {
 		if errors.IsErrorNotFound(err) {
