@@ -5,7 +5,6 @@ import (
 
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy"
-	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -17,8 +16,7 @@ var (
 )
 
 type orgDataSource struct {
-	client *api.APIClient
-	proxy  *proxy.OrganizationProxy
+	proxy proxy.ProxyDataSource[models.OrganizationDataSourceModel]
 }
 
 func NewOrgDataSource() datasource.DataSource {
@@ -34,8 +32,7 @@ func (d *orgDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 		return
 	}
 
-	d.client = req.ProviderData.(*api.APIClient)
-	d.proxy = proxy.NewOrganizationProxy(d.client)
+	d.proxy = req.ProviderData.(*proxy.Factory).GetOrganizationDataSourceProxy()
 }
 
 func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -45,7 +42,7 @@ func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state))
+	resp.Diagnostics.Append(d.proxy.FillDataSource(ctx, state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

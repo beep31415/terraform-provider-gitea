@@ -5,7 +5,6 @@ import (
 
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy"
-	"terraform-provider-gitea/internal/proxy/api"
 	"terraform-provider-gitea/pkg/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -26,8 +25,7 @@ var (
 )
 
 type orgResource struct {
-	client *api.APIClient
-	proxy  *proxy.OrganizationProxy
+	proxy proxy.ProxyResource[models.OrganizationResourceModel]
 }
 
 func NewOrgResource() resource.Resource {
@@ -43,8 +41,7 @@ func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest
 		return
 	}
 
-	r.client = req.ProviderData.(*api.APIClient)
-	r.proxy = proxy.NewOrganizationProxy(r.client)
+	r.proxy = req.ProviderData.(*proxy.Factory).GetOrganizationResourceProxy()
 }
 
 func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -54,7 +51,7 @@ func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Create(ctx, plan))
+	resp.Diagnostics.Append(r.proxy.Create(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -72,7 +69,7 @@ func (r *orgResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state))
+	resp.Diagnostics.Append(r.proxy.FillResource(ctx, state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -90,7 +87,7 @@ func (r *orgResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan))
+	resp.Diagnostics.Append(r.proxy.Update(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -108,7 +105,7 @@ func (r *orgResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Delete(ctx, state))
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, state)...)
 }
 
 func (r *orgResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

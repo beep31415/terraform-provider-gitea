@@ -1,4 +1,4 @@
-package proxy
+package proxies
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy/api"
 	"terraform-provider-gitea/internal/proxy/converters"
+	"terraform-provider-gitea/internal/proxy/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
@@ -22,10 +23,10 @@ func NewRepositoryProxy(client *api.APIClient) *RepositoryProxy {
 	}
 }
 
-func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.RepositoryDataSourceModel) diag.Diagnostic {
+func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.RepositoryDataSourceModel) diag.Diagnostics {
 	res, err := r.getByOwnerAndName(ctx, model.Owner.ValueString(), model.Name.ValueString())
 	if err != nil {
-		return toDiagnosticError(err, "Error Reading Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea repository.")
 	}
 
 	r.converter.ReadToDataSource(model, res)
@@ -33,10 +34,10 @@ func (r *RepositoryProxy) FillDataSource(ctx context.Context, model models.Repos
 	return nil
 }
 
-func (r *RepositoryProxy) FillResource(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostic {
+func (r *RepositoryProxy) FillResource(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
 	res, err := r.getByOwnerAndName(ctx, model.Owner.ValueString(), model.Name.ValueString())
 	if err != nil {
-		return toDiagnosticError(err, "Error Reading Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea repository.")
 	}
 
 	r.converter.ReadToResource(model, res)
@@ -44,10 +45,10 @@ func (r *RepositoryProxy) FillResource(ctx context.Context, model models.Reposit
 	return nil
 }
 
-func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostic {
+func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
 	org, err := r.getOrgByName(ctx, model.Owner.ValueString())
 	if err != nil {
-		return toDiagnosticError(err, "Error Creating Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Creating Gitea repository.")
 	}
 
 	createOptions := r.converter.ToApiAddRepositoryOptions(model)
@@ -59,15 +60,15 @@ func (r *RepositoryProxy) Create(ctx context.Context, model models.RepositoryRes
 		res, err = r.createCurrentUserRepo(ctx, createOptions)
 	}
 	if err != nil {
-		return toDiagnosticError(err, "Error Creating Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Creating Gitea repository.")
 	}
 
 	r.converter.ReadToResource(model, res)
 
-	return r.Edit(ctx, model)
+	return r.Update(ctx, model)
 }
 
-func (r *RepositoryProxy) Edit(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostic {
+func (r *RepositoryProxy) Update(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
 	editOptions := r.converter.ToApiEditRepositoryOptions(model)
 
 	res, _, err := r.client.RepositoryAPI.
@@ -75,7 +76,7 @@ func (r *RepositoryProxy) Edit(ctx context.Context, model models.RepositoryResou
 		Body(editOptions).
 		Execute()
 	if err != nil {
-		return toDiagnosticError(err, "Error Updating Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Updating Gitea repository.")
 	}
 
 	r.converter.ReadToResource(model, res)
@@ -83,21 +84,21 @@ func (r *RepositoryProxy) Edit(ctx context.Context, model models.RepositoryResou
 	return nil
 }
 
-func (r *RepositoryProxy) Delete(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostic {
+func (r *RepositoryProxy) Delete(ctx context.Context, model models.RepositoryResourceModel) diag.Diagnostics {
 	res, err := r.getById(ctx, model.ID.ValueInt64())
 	if err != nil {
-		if isErrorNotFound(err) {
+		if errors.IsErrorNotFound(err) {
 			return nil
 		}
 
-		return toDiagnosticError(err, "Error Deleting Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Deleting Gitea repository.")
 	}
 
 	_, err = r.client.RepositoryAPI.
 		RepoDelete(ctx, *res.GetOwner().Login, res.GetName()).
 		Execute()
 	if err != nil {
-		return toDiagnosticError(err, "Error Deleting Gitea repository.")
+		return errors.ToDiagnosticArrayError(err, "Error Deleting Gitea repository.")
 	}
 
 	return nil
@@ -142,7 +143,7 @@ func (r *RepositoryProxy) getOrgByName(ctx context.Context, name string) (*api.O
 		OrgGet(ctx, name).
 		Execute()
 
-	if isErrorNotFound(err) {
+	if errors.IsErrorNotFound(err) {
 		res = nil
 		err = nil
 	}

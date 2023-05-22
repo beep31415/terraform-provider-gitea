@@ -6,7 +6,6 @@ import (
 
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy"
-	"terraform-provider-gitea/internal/proxy/api"
 	"terraform-provider-gitea/pkg/plans"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
@@ -30,8 +29,7 @@ var (
 )
 
 type teamResource struct {
-	client *api.APIClient
-	proxy  *proxy.TeamProxy
+	proxy proxy.ProxyResource[models.TeamResourceModel]
 }
 
 func NewTeamResource() resource.Resource {
@@ -47,8 +45,7 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 		return
 	}
 
-	r.client = req.ProviderData.(*api.APIClient)
-	r.proxy = proxy.NewTeamProxy(r.client)
+	r.proxy = req.ProviderData.(*proxy.Factory).GetTeamResourceProxy()
 }
 
 func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -94,7 +91,7 @@ func (r *teamResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Update(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}

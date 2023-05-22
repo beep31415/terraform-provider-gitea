@@ -1,4 +1,4 @@
-package proxy
+package proxies
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy/api"
 	"terraform-provider-gitea/internal/proxy/converters"
+	"terraform-provider-gitea/internal/proxy/errors"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
@@ -22,12 +23,12 @@ func NewUserProxy(client *api.APIClient) *UserProxy {
 	}
 }
 
-func (u *UserProxy) FillDataSource(ctx context.Context, model models.UserDataSourceModel) diag.Diagnostic {
+func (u *UserProxy) FillDataSource(ctx context.Context, model models.UserDataSourceModel) diag.Diagnostics {
 	res, _, err := u.client.UserAPI.
 		UserGet(ctx, strings.ToLower(model.Name.ValueString())).
 		Execute()
 	if err != nil {
-		return toDiagnosticError(err, "Error Reading Gitea user.")
+		return errors.ToDiagnosticArrayError(err, "Error Reading Gitea user.")
 	}
 
 	u.converter.ReadToDataSource(model, res)

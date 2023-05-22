@@ -5,7 +5,6 @@ import (
 
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy"
-	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -18,8 +17,7 @@ var (
 )
 
 type branchProtectionDataSource struct {
-	client *api.APIClient
-	proxy  *proxy.BranchProtectionProxy
+	proxy proxy.ProxyDataSource[models.BranchProtectionDataSourceModel]
 }
 
 func NewBranchProtectionDataSource() datasource.DataSource {
@@ -35,8 +33,7 @@ func (d *branchProtectionDataSource) Configure(_ context.Context, req datasource
 		return
 	}
 
-	d.client = req.ProviderData.(*api.APIClient)
-	d.proxy = proxy.NewBranchProtectionProxy(d.client)
+	d.proxy = req.ProviderData.(*proxy.Factory).GetBranchProtectionDataSourceProxy()
 }
 
 func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

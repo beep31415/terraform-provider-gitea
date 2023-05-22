@@ -6,7 +6,6 @@ import (
 
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy"
-	"terraform-provider-gitea/internal/proxy/api"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -30,8 +29,7 @@ var (
 )
 
 type branchProtectionResource struct {
-	client *api.APIClient
-	proxy  *proxy.BranchProtectionProxy
+	proxy proxy.ProxyResource[models.BranchProtectionResourceModel]
 }
 
 func NewBranchProtectionResource() resource.Resource {
@@ -47,8 +45,7 @@ func (r *branchProtectionResource) Configure(_ context.Context, req resource.Con
 		return
 	}
 
-	r.client = req.ProviderData.(*api.APIClient)
-	r.proxy = proxy.NewBranchProtectionProxy(r.client)
+	r.proxy = req.ProviderData.(*proxy.Factory).GetBranchProtectionResourceProxy()
 }
 
 func (r *branchProtectionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -94,7 +91,7 @@ func (r *branchProtectionResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Edit(ctx, plan)...)
+	resp.Diagnostics.Append(r.proxy.Update(ctx, plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -112,7 +109,7 @@ func (r *branchProtectionResource) Delete(ctx context.Context, req resource.Dele
 		return
 	}
 
-	resp.Diagnostics.Append(r.proxy.Delete(ctx, state))
+	resp.Diagnostics.Append(r.proxy.Delete(ctx, state)...)
 }
 
 func (r *branchProtectionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

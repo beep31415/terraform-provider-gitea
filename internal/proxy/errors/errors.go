@@ -1,4 +1,4 @@
-package proxy
+package errors
 
 import (
 	"strings"
@@ -9,26 +9,26 @@ import (
 )
 
 func GetApiInitError(err error) string {
-	return getAPIErrorMessage(err)
+	return GetAPIErrorMessage(err)
 }
 
-func toDiagnosticError(err error, title string) diag.Diagnostic {
+func ToDiagnosticError(err error, title string) diag.Diagnostic {
 	return diag.NewErrorDiagnostic(
 		title,
-		getAPIErrorMessage(err),
+		GetAPIErrorMessage(err),
 	)
 }
 
-func toDiagnosticArrayError(err error, title string) diag.Diagnostics {
+func ToDiagnosticArrayError(err error, title string) diag.Diagnostics {
 	return diag.Diagnostics{
 		diag.NewErrorDiagnostic(
 			title,
-			getAPIErrorMessage(err),
+			GetAPIErrorMessage(err),
 		),
 	}
 }
 
-func isErrorNotFound(err error) bool {
+func IsErrorNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -41,7 +41,7 @@ func isErrorNotFound(err error) bool {
 	return strings.Contains(apiError.Error(), "404")
 }
 
-func getAPIErrorMessage(err error) string {
+func GetAPIErrorMessage(err error) string {
 	if err == nil {
 		return ""
 	}
