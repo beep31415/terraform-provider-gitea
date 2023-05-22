@@ -7,7 +7,6 @@ builds:
   mod_timestamp: '{{ .CommitTimestamp }}'
   flags:
     - -trimpath 
-    - -tags release
   ldflags:
     - '-s -w'
   goos:
