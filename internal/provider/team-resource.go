@@ -45,7 +45,7 @@ func (r *teamResource) Configure(_ context.Context, req resource.ConfigureReques
 		return
 	}
 
-	r.proxy = req.ProviderData.(*proxy.Factory).GetTeamResourceProxy()
+	r.proxy = req.ProviderData.(*proxy.Factory).NewTeamResourceProxy()
 }
 
 func (r *teamResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

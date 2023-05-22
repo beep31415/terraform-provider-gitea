@@ -42,7 +42,7 @@ func (r *repoResource) Configure(_ context.Context, req resource.ConfigureReques
 		return
 	}
 
-	r.proxy = req.ProviderData.(*proxy.Factory).GetRepositoryResourceProxy()
+	r.proxy = req.ProviderData.(*proxy.Factory).NewRepositoryResourceProxy()
 }
 
 func (r *repoResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

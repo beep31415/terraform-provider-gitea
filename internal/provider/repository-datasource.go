@@ -32,7 +32,7 @@ func (d *repoDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 		return
 	}
 
-	d.proxy = req.ProviderData.(*proxy.Factory).GetRepositoryDataSourceProxy()
+	d.proxy = req.ProviderData.(*proxy.Factory).NewRepositoryDataSourceProxy()
 }
 
 func (d *repoDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

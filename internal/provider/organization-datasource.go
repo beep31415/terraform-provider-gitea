@@ -32,7 +32,7 @@ func (d *orgDataSource) Configure(_ context.Context, req datasource.ConfigureReq
 		return
 	}
 
-	d.proxy = req.ProviderData.(*proxy.Factory).GetOrganizationDataSourceProxy()
+	d.proxy = req.ProviderData.(*proxy.Factory).NewOrganizationDataSourceProxy()
 }
 
 func (d *orgDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

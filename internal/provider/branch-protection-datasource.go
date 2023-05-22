@@ -33,7 +33,7 @@ func (d *branchProtectionDataSource) Configure(_ context.Context, req datasource
 		return
 	}
 
-	d.proxy = req.ProviderData.(*proxy.Factory).GetBranchProtectionDataSourceProxy()
+	d.proxy = req.ProviderData.(*proxy.Factory).NewBranchProtectionDataSourceProxy()
 }
 
 func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

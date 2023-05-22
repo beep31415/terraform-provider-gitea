@@ -45,7 +45,7 @@ func (r *branchProtectionResource) Configure(_ context.Context, req resource.Con
 		return
 	}
 
-	r.proxy = req.ProviderData.(*proxy.Factory).GetBranchProtectionResourceProxy()
+	r.proxy = req.ProviderData.(*proxy.Factory).NewBranchProtectionResourceProxy()
 }
 
 func (r *branchProtectionResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

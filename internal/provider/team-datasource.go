@@ -33,7 +33,7 @@ func (d *teamDataSource) Configure(_ context.Context, req datasource.ConfigureRe
 		return
 	}
 
-	d.proxy = req.ProviderData.(*proxy.Factory).GetTeamDataSourceProxy()
+	d.proxy = req.ProviderData.(*proxy.Factory).NewTeamDataSourceProxy()
 }
 
 func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {

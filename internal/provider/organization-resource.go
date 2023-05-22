@@ -41,7 +41,7 @@ func (r *orgResource) Configure(_ context.Context, req resource.ConfigureRequest
 		return
 	}
 
-	r.proxy = req.ProviderData.(*proxy.Factory).GetOrganizationResourceProxy()
+	r.proxy = req.ProviderData.(*proxy.Factory).NewOrganizationResourceProxy()
 }
 
 func (r *orgResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
