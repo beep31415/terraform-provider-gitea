@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -50,7 +49,7 @@ func (p *giteaProvider) Configure(ctx context.Context, req provider.ConfigureReq
 		return
 	}
 
-	apiClient, err := p.NewAPIClient(cfg)
+	apiClient, err := p.newAPIClient(cfg)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Create Gitea API Client.",
@@ -87,16 +86,15 @@ func (p *giteaProvider) Resources(_ context.Context) []func() resource.Resource 
 	}
 }
 
-func (p *giteaProvider) NewAPIClient(cfg giteaProviderModel) (*api.APIClient, error) {
+func (p *giteaProvider) newAPIClient(cfg giteaProviderModel) (*api.APIClient, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: cfg.Insecure.ValueBool(),
 	}
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = tlsConfig
 
-	url, _ := url.Parse(cfg.BaseURL.ValueString())
 	apiClientConfig := api.NewConfiguration()
-	apiClientConfig.Host = url.Host
-	apiClientConfig.Scheme = url.Scheme
+	apiClientConfig.Host = cfg.parsedUrl.Host
+	apiClientConfig.Scheme = cfg.parsedUrl.Scheme
 	apiClientConfig.HTTPClient = &http.Client{
 		Transport: http.DefaultTransport,
 		Timeout:   10 * time.Second,
