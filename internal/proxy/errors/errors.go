@@ -8,21 +8,17 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 )
 
-func GetApiInitError(err error) string {
-	return GetAPIErrorMessage(err)
-}
-
-func ToDiagnosticError(err error, title string) diag.Diagnostic {
+func ToDiagnosticError(err error, category string) diag.Diagnostic {
 	return diag.NewErrorDiagnostic(
-		title,
+		category,
 		GetAPIErrorMessage(err),
 	)
 }
 
-func ToDiagnosticArrayError(err error, title string) diag.Diagnostics {
+func ToDiagnosticArrayError(err error, category string) diag.Diagnostics {
 	return diag.Diagnostics{
 		diag.NewErrorDiagnostic(
-			title,
+			category,
 			GetAPIErrorMessage(err),
 		),
 	}
