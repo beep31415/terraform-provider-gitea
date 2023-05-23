@@ -30,6 +30,21 @@ func (BranchProtectionConverter) ReadToDataSource(ctx context.Context,
 		return diags
 	}
 
+	approvalWhiteListTeams, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetApprovalsWhitelistTeams())
+	if diags.HasError() {
+		return diags
+	}
+
+	mergeWhiteListTeams, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetMergeWhitelistTeams())
+	if diags.HasError() {
+		return diags
+	}
+
+	pushWhiteListTeams, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetPushWhitelistTeams())
+	if diags.HasError() {
+		return diags
+	}
+
 	model.BranchName = types.StringValue(branchProtection.GetBranchName())
 	model.BlockOnOfficialReviewRequests = types.BoolValue(branchProtection.GetBlockOnOfficialReviewRequests())
 	model.BlockOnOutdatedBranch = types.BoolValue(branchProtection.GetBlockOnOutdatedBranch())
@@ -44,9 +59,12 @@ func (BranchProtectionConverter) ReadToDataSource(ctx context.Context,
 	model.RequireSignedCommits = types.BoolValue(branchProtection.GetRequireSignedCommits())
 	model.RequiredApprovals = types.Int64Value(branchProtection.GetRequiredApprovals())
 	model.UnprotectedFilePatterns = types.StringValue(branchProtection.GetUnprotectedFilePatterns())
-	model.ApprovalsWhitelistUsername = approvalWhiteList
+	model.ApprovalsWhitelistUsernames = approvalWhiteList
 	model.MergeWhitelistUsernames = mergeWhiteList
 	model.PushWhitelistUsernames = pushWhiteList
+	model.ApprovalsWhitelistTeams = approvalWhiteListTeams
+	model.MergeWhitelistTeams = mergeWhiteListTeams
+	model.PushWhitelistTeams = pushWhiteListTeams
 
 	return nil
 }
@@ -70,6 +88,21 @@ func (BranchProtectionConverter) ReadToResource(ctx context.Context,
 		return diags
 	}
 
+	tfApprovalWhiteListTeams, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetApprovalsWhitelistTeams())
+	if diags.HasError() {
+		return diags
+	}
+
+	tfMergeWhiteListTeams, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetMergeWhitelistTeams())
+	if diags.HasError() {
+		return diags
+	}
+
+	tfPushWhiteListTeams, diags := types.ListValueFrom(ctx, types.StringType, branchProtection.GetPushWhitelistTeams())
+	if diags.HasError() {
+		return diags
+	}
+
 	model.BranchName = types.StringValue(branchProtection.GetBranchName())
 	model.BlockOnOfficialReviewRequests = types.BoolValue(branchProtection.GetBlockOnOfficialReviewRequests())
 	model.BlockOnOutdatedBranch = types.BoolValue(branchProtection.GetBlockOnOutdatedBranch())
@@ -84,9 +117,12 @@ func (BranchProtectionConverter) ReadToResource(ctx context.Context,
 	model.RequireSignedCommits = types.BoolValue(branchProtection.GetRequireSignedCommits())
 	model.RequiredApprovals = types.Int64Value(branchProtection.GetRequiredApprovals())
 	model.UnprotectedFilePatterns = types.StringValue(branchProtection.GetUnprotectedFilePatterns())
-	model.ApprovalsWhitelistUsername = tfApprovalWhiteList
+	model.ApprovalsWhitelistUsernames = tfApprovalWhiteList
 	model.MergeWhitelistUsernames = tfMergeWhiteList
 	model.PushWhitelistUsernames = tfPushWhiteList
+	model.ApprovalsWhitelistTeams = tfApprovalWhiteListTeams
+	model.MergeWhitelistTeams = tfMergeWhiteListTeams
+	model.PushWhitelistTeams = tfPushWhiteListTeams
 
 	return diags
 }
@@ -95,7 +131,7 @@ func (BranchProtectionConverter) ToApiAddBranchProtectionOptions(ctx context.Con
 	model models.BranchProtectionResourceModel) (api.CreateBranchProtectionOption, diag.Diagnostics) {
 
 	var approvalWhiteList []string
-	diags := model.ApprovalsWhitelistUsername.ElementsAs(ctx, &approvalWhiteList, true)
+	diags := model.ApprovalsWhitelistUsernames.ElementsAs(ctx, &approvalWhiteList, true)
 	if diags.HasError() {
 		return api.CreateBranchProtectionOption{}, diags
 	}
@@ -108,6 +144,24 @@ func (BranchProtectionConverter) ToApiAddBranchProtectionOptions(ctx context.Con
 
 	var pushWhiteList []string
 	diags = model.PushWhitelistUsernames.ElementsAs(ctx, &pushWhiteList, true)
+	if diags.HasError() {
+		return api.CreateBranchProtectionOption{}, diags
+	}
+
+	var approvalWhiteListTeams []string
+	diags = model.ApprovalsWhitelistTeams.ElementsAs(ctx, &approvalWhiteListTeams, true)
+	if diags.HasError() {
+		return api.CreateBranchProtectionOption{}, diags
+	}
+
+	var mergeWhiteListTeams []string
+	diags = model.MergeWhitelistTeams.ElementsAs(ctx, &mergeWhiteListTeams, true)
+	if diags.HasError() {
+		return api.CreateBranchProtectionOption{}, diags
+	}
+
+	var pushWhiteListTeams []string
+	diags = model.PushWhitelistTeams.ElementsAs(ctx, &pushWhiteListTeams, true)
 	if diags.HasError() {
 		return api.CreateBranchProtectionOption{}, diags
 	}
@@ -115,7 +169,6 @@ func (BranchProtectionConverter) ToApiAddBranchProtectionOptions(ctx context.Con
 	return api.CreateBranchProtectionOption{
 		RuleName:                      model.BranchName.ValueStringPointer(),
 		BranchName:                    model.BranchName.ValueStringPointer(),
-		ApprovalsWhitelistUsername:    approvalWhiteList,
 		BlockOnOfficialReviewRequests: model.BlockOnOfficialReviewRequests.ValueBoolPointer(),
 		BlockOnOutdatedBranch:         model.BlockOnOutdatedBranch.ValueBoolPointer(),
 		BlockOnRejectedReviews:        model.BlockOnRejectedReviews.ValueBoolPointer(),
@@ -124,13 +177,17 @@ func (BranchProtectionConverter) ToApiAddBranchProtectionOptions(ctx context.Con
 		EnableMergeWhitelist:          model.EnableMergeWhitelist.ValueBoolPointer(),
 		EnablePush:                    model.EnablePush.ValueBoolPointer(),
 		EnablePushWhitelist:           model.EnablePushWhitelist.ValueBoolPointer(),
-		MergeWhitelistUsernames:       mergeWhiteList,
 		ProtectedFilePatterns:         model.ProtectedFilePatterns.ValueStringPointer(),
 		PushWhitelistDeployKeys:       model.PushWhitelistDeployKeys.ValueBoolPointer(),
-		PushWhitelistUsernames:        pushWhiteList,
 		RequireSignedCommits:          model.RequireSignedCommits.ValueBoolPointer(),
 		RequiredApprovals:             model.RequiredApprovals.ValueInt64Pointer(),
 		UnprotectedFilePatterns:       model.UnprotectedFilePatterns.ValueStringPointer(),
+		ApprovalsWhitelistUsername:    approvalWhiteList,
+		MergeWhitelistUsernames:       mergeWhiteList,
+		PushWhitelistUsernames:        pushWhiteList,
+		ApprovalsWhitelistTeams:       approvalWhiteListTeams,
+		MergeWhitelistTeams:           mergeWhiteListTeams,
+		PushWhitelistTeams:            pushWhiteListTeams,
 	}, nil
 }
 
@@ -138,7 +195,7 @@ func (BranchProtectionConverter) ToApiEditBranchProtectionOptions(ctx context.Co
 	model models.BranchProtectionResourceModel) (api.EditBranchProtectionOption, diag.Diagnostics) {
 
 	var approvalWhiteList []string
-	diags := model.ApprovalsWhitelistUsername.ElementsAs(ctx, &approvalWhiteList, true)
+	diags := model.ApprovalsWhitelistUsernames.ElementsAs(ctx, &approvalWhiteList, true)
 	if diags.HasError() {
 		return api.EditBranchProtectionOption{}, diags
 	}
@@ -155,8 +212,25 @@ func (BranchProtectionConverter) ToApiEditBranchProtectionOptions(ctx context.Co
 		return api.EditBranchProtectionOption{}, diags
 	}
 
+	var approvalWhiteListTeams []string
+	diags = model.ApprovalsWhitelistTeams.ElementsAs(ctx, &approvalWhiteListTeams, true)
+	if diags.HasError() {
+		return api.EditBranchProtectionOption{}, diags
+	}
+
+	var mergeWhiteListTeams []string
+	diags = model.MergeWhitelistTeams.ElementsAs(ctx, &mergeWhiteListTeams, true)
+	if diags.HasError() {
+		return api.EditBranchProtectionOption{}, diags
+	}
+
+	var pushWhiteListTeams []string
+	diags = model.PushWhitelistTeams.ElementsAs(ctx, &pushWhiteListTeams, true)
+	if diags.HasError() {
+		return api.EditBranchProtectionOption{}, diags
+	}
+
 	return api.EditBranchProtectionOption{
-		ApprovalsWhitelistUsername:    approvalWhiteList,
 		BlockOnOfficialReviewRequests: model.BlockOnOfficialReviewRequests.ValueBoolPointer(),
 		BlockOnOutdatedBranch:         model.BlockOnOutdatedBranch.ValueBoolPointer(),
 		BlockOnRejectedReviews:        model.BlockOnRejectedReviews.ValueBoolPointer(),
@@ -165,12 +239,16 @@ func (BranchProtectionConverter) ToApiEditBranchProtectionOptions(ctx context.Co
 		EnableMergeWhitelist:          model.EnableMergeWhitelist.ValueBoolPointer(),
 		EnablePush:                    model.EnablePush.ValueBoolPointer(),
 		EnablePushWhitelist:           model.EnablePushWhitelist.ValueBoolPointer(),
-		MergeWhitelistUsernames:       mergeWhiteList,
 		ProtectedFilePatterns:         model.ProtectedFilePatterns.ValueStringPointer(),
 		PushWhitelistDeployKeys:       model.PushWhitelistDeployKeys.ValueBoolPointer(),
-		PushWhitelistUsernames:        pushWhiteList,
 		RequireSignedCommits:          model.RequireSignedCommits.ValueBoolPointer(),
 		RequiredApprovals:             model.RequiredApprovals.ValueInt64Pointer(),
 		UnprotectedFilePatterns:       model.UnprotectedFilePatterns.ValueStringPointer(),
+		ApprovalsWhitelistUsername:    approvalWhiteList,
+		MergeWhitelistUsernames:       mergeWhiteList,
+		PushWhitelistUsernames:        pushWhiteList,
+		ApprovalsWhitelistTeams:       approvalWhiteListTeams,
+		MergeWhitelistTeams:           mergeWhiteListTeams,
+		PushWhitelistTeams:            pushWhiteListTeams,
 	}, nil
 }

@@ -70,8 +70,13 @@ func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.Sche
 				Description: "The branch name targeted by the rule.",
 				Computed:    true,
 			},
-			"approvals_whitelist_username": schema.ListAttribute{
+			"approvals_whitelist_usernames": schema.ListAttribute{
 				Description: "Whitelist of users allowed for approval.",
+				ElementType: types.StringType,
+				Computed:    true,
+			},
+			"approvals_whitelist_teams": schema.ListAttribute{
+				Description: "Whitelist of teams allowed for approval.",
 				ElementType: types.StringType,
 				Computed:    true,
 			},
@@ -112,6 +117,11 @@ func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.Sche
 				ElementType: types.StringType,
 				Computed:    true,
 			},
+			"merge_whitelist_teams": schema.ListAttribute{
+				Description: "Whitelist of teams allowed to merge.",
+				ElementType: types.StringType,
+				Computed:    true,
+			},
 			"protected_file_patterns": schema.StringAttribute{
 				Description: "File pattern of protected files.",
 				Computed:    true,
@@ -121,7 +131,12 @@ func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.Sche
 				Computed:    true,
 			},
 			"push_whitelist_usernames": schema.ListAttribute{
-				Description: "Flag indicating whether to push usernames on whitelisted users.",
+				Description: "Whitelist of users allowed to push.",
+				ElementType: types.StringType,
+				Computed:    true,
+			},
+			"push_whitelist_teams": schema.ListAttribute{
+				Description: "Whitelist of teams allowed to push.",
 				ElementType: types.StringType,
 				Computed:    true,
 			},

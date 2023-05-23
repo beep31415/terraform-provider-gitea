@@ -1,6 +1,6 @@
 GOFMT ?= gofmt -s
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
-VERSION = 1.0.0
+VERSION = 1.1.0
 CURRENT_USER = $$(id -u ${USER})
 LOG_PATH = /mnt/d/trace.txt
 

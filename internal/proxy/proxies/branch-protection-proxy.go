@@ -2,6 +2,7 @@ package proxies
 
 import (
 	"context"
+	"fmt"
 
 	"terraform-provider-gitea/internal/models"
 	"terraform-provider-gitea/internal/proxy/api"
@@ -57,7 +58,15 @@ func (b *branchProtectionProxy) Create(ctx context.Context, model *models.Branch
 		return errors.ToDiagnosticArrayError(err, "Error Creating Gitea branch protection.")
 	}
 
-	return b.converter.ReadToResource(ctx, model, res)
+	diags.Append(b.validatePermissions("Approvals whitelist users", option.GetApprovalsWhitelistUsername(), res.GetApprovalsWhitelistUsername())...)
+	diags.Append(b.validatePermissions("Approvals whitelist teams", option.GetApprovalsWhitelistTeams(), res.GetApprovalsWhitelistTeams())...)
+	diags.Append(b.validatePermissions("Merge whitelist users", option.GetMergeWhitelistUsernames(), res.GetMergeWhitelistUsernames())...)
+	diags.Append(b.validatePermissions("Merge whitelist teams", option.GetMergeWhitelistTeams(), res.GetMergeWhitelistTeams())...)
+	diags.Append(b.validatePermissions("Push whitelist users", option.GetPushWhitelistUsernames(), res.GetPushWhitelistUsernames())...)
+	diags.Append(b.validatePermissions("Push whitelist teams", option.GetPushWhitelistTeams(), res.GetPushWhitelistTeams())...)
+	diags.Append(b.converter.ReadToResource(ctx, model, res)...)
+
+	return diags
 }
 
 func (b *branchProtectionProxy) Update(ctx context.Context, model *models.BranchProtectionResourceModel) diag.Diagnostics {
@@ -75,7 +84,15 @@ func (b *branchProtectionProxy) Update(ctx context.Context, model *models.Branch
 		return errors.ToDiagnosticArrayError(err, "Error Updating Gitea branch protection.")
 	}
 
-	return b.converter.ReadToResource(ctx, model, res)
+	diags.Append(b.validatePermissions("Approvals whitelist users", option.GetApprovalsWhitelistUsername(), res.GetApprovalsWhitelistUsername())...)
+	diags.Append(b.validatePermissions("Approvals whitelist teams", option.GetApprovalsWhitelistTeams(), res.GetApprovalsWhitelistTeams())...)
+	diags.Append(b.validatePermissions("Merge whitelist users", option.GetMergeWhitelistUsernames(), res.GetMergeWhitelistUsernames())...)
+	diags.Append(b.validatePermissions("Merge whitelist teams", option.GetMergeWhitelistTeams(), res.GetMergeWhitelistTeams())...)
+	diags.Append(b.validatePermissions("Push whitelist users", option.GetPushWhitelistUsernames(), res.GetPushWhitelistUsernames())...)
+	diags.Append(b.validatePermissions("Push whitelist teams", option.GetPushWhitelistTeams(), res.GetPushWhitelistTeams())...)
+	diags.Append(b.converter.ReadToResource(ctx, model, res)...)
+
+	return diags
 }
 
 func (b *branchProtectionProxy) Delete(ctx context.Context, model *models.BranchProtectionResourceModel) diag.Diagnostics {
@@ -106,4 +123,14 @@ func (b *branchProtectionProxy) getByOwnerRepoAndBranchName(ctx context.Context,
 		Execute()
 
 	return res, err
+}
+
+func (b *branchProtectionProxy) validatePermissions(setName string, expected, actual []string) diag.Diagnostics {
+	if len(expected) > len(actual) {
+		return errors.ToDiagnosticArrayWarning(
+			fmt.Errorf("Possible permission issue for '%s'\n\texpected: %+v\tactual: %+v\n", setName, expected, actual),
+			setName)
+	}
+
+	return nil
 }

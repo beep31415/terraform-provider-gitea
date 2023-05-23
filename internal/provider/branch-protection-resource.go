@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -153,14 +152,23 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"approvals_whitelist_username": schema.ListAttribute{
+			"approvals_whitelist_usernames": schema.ListAttribute{
 				Description: "Whitelist of users allowed for approval.",
 				ElementType: types.StringType,
 				Computed:    true,
 				Optional:    true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
 				},
+			},
+			"approvals_whitelist_teams": schema.ListAttribute{
+				Description: "Whitelist of teams allowed for approval.",
+				ElementType: types.StringType,
+				Computed:    true,
+				Optional:    true,
 				Validators: []validator.List{
 					listvalidator.UniqueValues(),
 					listvalidator.ValueStringsAre(
@@ -221,9 +229,18 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				ElementType: types.StringType,
 				Computed:    true,
 				Optional:    true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
 				},
+			},
+			"merge_whitelist_teams": schema.ListAttribute{
+				Description: "Whitelist of teams allowed to merge.",
+				ElementType: types.StringType,
+				Computed:    true,
+				Optional:    true,
 				Validators: []validator.List{
 					listvalidator.UniqueValues(),
 					listvalidator.ValueStringsAre(
@@ -248,9 +265,18 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				ElementType: types.StringType,
 				Computed:    true,
 				Optional:    true,
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
+				Validators: []validator.List{
+					listvalidator.UniqueValues(),
+					listvalidator.ValueStringsAre(
+						stringvalidator.NoneOf(""),
+					),
 				},
+			},
+			"push_whitelist_teams": schema.ListAttribute{
+				Description: "Whitelist of teams allowed to push.",
+				ElementType: types.StringType,
+				Computed:    true,
+				Optional:    true,
 				Validators: []validator.List{
 					listvalidator.UniqueValues(),
 					listvalidator.ValueStringsAre(

@@ -24,6 +24,15 @@ func ToDiagnosticArrayError(err error, category string) diag.Diagnostics {
 	}
 }
 
+func ToDiagnosticArrayWarning(err error, category string) diag.Diagnostics {
+	return diag.Diagnostics{
+		diag.NewWarningDiagnostic(
+			category,
+			GetAPIErrorMessage(err),
+		),
+	}
+}
+
 func IsErrorNotFound(err error) bool {
 	if err == nil {
 		return false

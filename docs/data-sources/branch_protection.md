@@ -22,7 +22,8 @@ Fetches a Gitea branch protection.
 
 ### Read-Only
 
-- `approvals_whitelist_username` (List of String) Whitelist of users allowed for approval.
+- `approvals_whitelist_teams` (List of String) Whitelist of teams allowed for approval.
+- `approvals_whitelist_usernames` (List of String) Whitelist of users allowed for approval.
 - `block_on_official_review_requests` (Boolean) Flag indicating whether pull request blocks on official review requests.
 - `block_on_outdated_branch` (Boolean) Flag indicating whether pull request blocks when branch is outdated.
 - `block_on_rejected_reviews` (Boolean) Flag indicating whether pull request blocks when pull request is rejected.
@@ -32,10 +33,12 @@ Fetches a Gitea branch protection.
 - `enable_merge_whitelist` (Boolean) Flag indicating whether to enable list of users allowed to merge.
 - `enable_push` (Boolean) Flag indicating whether to allow push to protected branch.
 - `enable_push_whitelist` (Boolean) Flag indicating whether to enable whitelist of users allowed to push.
+- `merge_whitelist_teams` (List of String) Whitelist of teams allowed to merge.
 - `merge_whitelist_usernames` (List of String) Whitelist of users allowed to merge.
 - `protected_file_patterns` (String) File pattern of protected files.
 - `push_whitelist_deploy_keys` (Boolean) Flag indicating whether to push deploy keys on whitelisted users.
-- `push_whitelist_usernames` (List of String) Flag indicating whether to push usernames on whitelisted users.
+- `push_whitelist_teams` (List of String) Whitelist of teams allowed to push.
+- `push_whitelist_usernames` (List of String) Whitelist of users allowed to push.
 - `require_signed_commits` (Boolean) Flag indicating whether to require a signed commit on push.
 - `required_approvals` (Number) Flag indicating whether to require approvals on pull requests.
 - `unprotected_file_patterns` (String) File pattern of unprotected files.
