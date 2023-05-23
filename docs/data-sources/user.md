@@ -3,12 +3,12 @@
 page_title: "gitea_user Data Source - gitea"
 subcategory: ""
 description: |-
-  Fetches a Gitea organization.
+  Fetches a Gitea user.
 ---
 
 # gitea_user (Data Source)
 
-Fetches a Gitea organization.
+Fetches a Gitea user.
 
 
 

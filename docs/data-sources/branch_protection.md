@@ -3,12 +3,12 @@
 page_title: "gitea_branch_protection Data Source - gitea"
 subcategory: ""
 description: |-
-  Fetches a Gitea team.
+  Fetches a Gitea branch protection.
 ---
 
 # gitea_branch_protection (Data Source)
 
-Fetches a Gitea team.
+Fetches a Gitea branch protection.
 
 
 

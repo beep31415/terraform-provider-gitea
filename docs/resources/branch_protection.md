@@ -3,12 +3,12 @@
 page_title: "gitea_branch_protection Resource - gitea"
 subcategory: ""
 description: |-
-  Manages a Gitea organization.
+  Manages a Gitea branch protection.
 ---
 
 # gitea_branch_protection (Resource)
 
-Manages a Gitea organization.
+Manages a Gitea branch protection.
 
 
 

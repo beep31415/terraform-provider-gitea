@@ -56,7 +56,7 @@ func (d *branchProtectionDataSource) Read(ctx context.Context, req datasource.Re
 
 func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches a Gitea team.",
+		Description: "Fetches a Gitea branch protection.",
 		Attributes: map[string]schema.Attribute{
 			"owner": schema.StringAttribute{
 				Description: "The owner of the repo the rule belongs to.",

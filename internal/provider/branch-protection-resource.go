@@ -130,7 +130,7 @@ func (r *branchProtectionResource) ImportState(ctx context.Context, req resource
 
 func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages a Gitea organization.",
+		Description: "Manages a Gitea branch protection.",
 		Attributes: map[string]schema.Attribute{
 			"branch_name": schema.StringAttribute{
 				Description: "The branch name targeted by the rule.",

@@ -55,7 +55,7 @@ func (d *repoDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 func (d *repoDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Fetches a Gitea organization.",
+		Description: "Fetches a Gitea repository.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Description: "Identifier attribute.",

@@ -3,12 +3,12 @@
 page_title: "gitea_repo Data Source - gitea"
 subcategory: ""
 description: |-
-  Fetches a Gitea organization.
+  Fetches a Gitea repository.
 ---
 
 # gitea_repo (Data Source)
 
-Fetches a Gitea organization.
+Fetches a Gitea repository.
 
 
 
