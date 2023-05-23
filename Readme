@@ -1,3 +1,5 @@
 Gitea terraform provider.
 
 Implemented with terraform provider framework and openapi auto-generated client.
+
+Tested with Gitea server version 1.19.
