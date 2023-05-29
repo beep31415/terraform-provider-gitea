@@ -59,6 +59,7 @@ func (BranchProtectionConverter) ReadToDataSource(ctx context.Context,
 	model.RequireSignedCommits = types.BoolValue(branchProtection.GetRequireSignedCommits())
 	model.RequiredApprovals = types.Int64Value(branchProtection.GetRequiredApprovals())
 	model.UnprotectedFilePatterns = types.StringValue(branchProtection.GetUnprotectedFilePatterns())
+	model.EnableStatusCheck = types.BoolValue(branchProtection.GetEnableStatusCheck())
 	model.ApprovalsWhitelistUsernames = approvalWhiteList
 	model.MergeWhitelistUsernames = mergeWhiteList
 	model.PushWhitelistUsernames = pushWhiteList
@@ -117,6 +118,7 @@ func (BranchProtectionConverter) ReadToResource(ctx context.Context,
 	model.RequireSignedCommits = types.BoolValue(branchProtection.GetRequireSignedCommits())
 	model.RequiredApprovals = types.Int64Value(branchProtection.GetRequiredApprovals())
 	model.UnprotectedFilePatterns = types.StringValue(branchProtection.GetUnprotectedFilePatterns())
+	model.EnableStatusCheck = types.BoolValue(branchProtection.GetEnableStatusCheck())
 	model.ApprovalsWhitelistUsernames = tfApprovalWhiteList
 	model.MergeWhitelistUsernames = tfMergeWhiteList
 	model.PushWhitelistUsernames = tfPushWhiteList
@@ -182,6 +184,7 @@ func (BranchProtectionConverter) ToApiAddBranchProtectionOptions(ctx context.Con
 		RequireSignedCommits:          model.RequireSignedCommits.ValueBoolPointer(),
 		RequiredApprovals:             model.RequiredApprovals.ValueInt64Pointer(),
 		UnprotectedFilePatterns:       model.UnprotectedFilePatterns.ValueStringPointer(),
+		EnableStatusCheck:             model.EnableStatusCheck.ValueBoolPointer(),
 		ApprovalsWhitelistUsername:    approvalWhiteList,
 		MergeWhitelistUsernames:       mergeWhiteList,
 		PushWhitelistUsernames:        pushWhiteList,
@@ -244,6 +247,7 @@ func (BranchProtectionConverter) ToApiEditBranchProtectionOptions(ctx context.Co
 		RequireSignedCommits:          model.RequireSignedCommits.ValueBoolPointer(),
 		RequiredApprovals:             model.RequiredApprovals.ValueInt64Pointer(),
 		UnprotectedFilePatterns:       model.UnprotectedFilePatterns.ValueStringPointer(),
+		EnableStatusCheck:             model.EnableStatusCheck.ValueBoolPointer(),
 		ApprovalsWhitelistUsername:    approvalWhiteList,
 		MergeWhitelistUsernames:       mergeWhiteList,
 		PushWhitelistUsernames:        pushWhiteList,

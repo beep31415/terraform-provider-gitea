@@ -302,6 +302,12 @@ func (d *branchProtectionResource) Schema(_ context.Context, _ resource.SchemaRe
 				Optional:    true,
 				Default:     stringdefault.StaticString(""),
 			},
+			"enable_status_check": schema.BoolAttribute{
+				Description: "Flag indicating whether status checks must pass before pull request merge. Defaults to `false`.",
+				Computed:    true,
+				Optional:    true,
+				Default:     booldefault.StaticBool(false),
+			},
 		},
 	}
 }

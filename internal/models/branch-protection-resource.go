@@ -27,4 +27,5 @@ type BranchProtectionResourceModel struct {
 	RequireSignedCommits          types.Bool   `tfsdk:"require_signed_commits"`
 	RequiredApprovals             types.Int64  `tfsdk:"required_approvals"`
 	UnprotectedFilePatterns       types.String `tfsdk:"unprotected_file_patterns"`
+	EnableStatusCheck             types.Bool   `tfsdk:"enable_status_check"`
 }

@@ -33,6 +33,7 @@ Manages a Gitea branch protection.
 - `enable_merge_whitelist` (Boolean) Flag indicating whether to enable list of users allowed to merge. Defaults to `false`.
 - `enable_push` (Boolean) Flag indicating whether to allow push to protected branch. Defaults to `false`.
 - `enable_push_whitelist` (Boolean) Flag indicating whether to enable whitelist of users allowed to push. Defaults to `false`.
+- `enable_status_check` (Boolean) Flag indicating whether status checks must pass before pull request merge. Defaults to `false`.
 - `merge_whitelist_teams` (List of String) Whitelist of teams allowed to merge.
 - `merge_whitelist_usernames` (List of String) Whitelist of users allowed to merge.
 - `protected_file_patterns` (String) File pattern of protected files. Defaults to `""`.

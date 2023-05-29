@@ -1,8 +1,9 @@
 GOFMT ?= gofmt -s
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
-VERSION = 1.1.0
 CURRENT_USER = $$(id -u ${USER})
 LOG_PATH = /mnt/d/trace.txt
+VERSION = 1.1.0
+OUTPUT_FOLDER = /
 
 vet:
 	@echo "go vet ."
@@ -35,15 +36,6 @@ gen-api:
 		-o /local
 	@make fmt
 
-build: 
-	@go build -ldflags "-s -w" -o terraform-provider-gitea_${VERSION} -tags release ./cmd
-
-install: build 
-	@echo installing to 
-	@echo ~/.terraform.d/plugins/terraform.local/local/gitea/${VERSION}/linux_amd64/terraform-provider-gitea_${VERSION}
-	@mkdir -p ~/.terraform.d/plugins/terraform.local/local/gitea/${VERSION}/linux_amd64
-	@mv ./terraform-provider-gitea_${VERSION} ~/.terraform.d/plugins/terraform.local/local/gitea/${VERSION}/linux_amd64/terraform-provider-gitea_${VERSION}
-
 prepare-test: FORCE
 	@make build
 	@make install
@@ -54,5 +46,13 @@ prepare-test: FORCE
 
 docs: FORCE
 	go generate ./...
+
+build: FORCE
+	@go build -ldflags "-s -w" -o terraform-provider-gitea -tags release ./cmd
+
+install: FORCE
+	@mkdir -p ${OUTPUT_FOLDER}/terraform.local/local/gitea/${VERSION}/linux_amd64
+	@mv ./terraform-provider-gitea ${OUTPUT_FOLDER}/terraform.local/local/gitea/${VERSION}/linux_amd64/terraform-provider-gitea_${VERSION}
+	@echo "installed terraform.local/local/gitea version ${VERSION}"
 
 FORCE:

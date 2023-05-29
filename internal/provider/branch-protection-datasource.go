@@ -152,6 +152,10 @@ func (d *branchProtectionDataSource) Schema(_ context.Context, _ datasource.Sche
 				Description: "File pattern of unprotected files.",
 				Computed:    true,
 			},
+			"enable_status_check": schema.BoolAttribute{
+				Description: "Flag indicating whether status checks must pass before pull request merge.",
+				Computed:    true,
+			},
 		},
 	}
 }

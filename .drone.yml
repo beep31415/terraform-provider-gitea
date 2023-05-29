@@ -1,0 +1,100 @@
+kind: pipeline
+type: kubernetes
+name: gitea-tf-plugin
+
+clone:
+  disable: true
+
+trigger:
+  event: [tag, pull_request]
+  action: [opened, synchronized, create]
+
+steps:
+  - name: clone-tag
+    image: alpine/git
+    environment:
+      SSH_CLIENT_KEY:
+        from_secret: ssh-client-key
+      SSH_SERVER_KEY:
+        from_secret: ssh-server-key
+    commands:
+      - mkdir -p $HOME/.ssh
+      - printenv SSH_SERVER_KEY | base64 -d > $HOME/.ssh/known_hosts
+      - printenv SSH_CLIENT_KEY | base64 -d > $HOME/.ssh/id_rsa
+      - chmod 600 $HOME/.ssh/id_rsa
+      - git clone -b $DRONE_TAG --depth 1 $DRONE_GIT_SSH_URL .
+      - git checkout $DRONE_COMMIT
+    when:
+      event: [tag]
+
+  - name: clone-pull-request
+    image: alpine/git
+    environment:
+      SSH_CLIENT_KEY:
+        from_secret: ssh-client-key
+      SSH_SERVER_KEY:
+        from_secret: ssh-server-key
+    commands:
+      - mkdir -p $HOME/.ssh
+      - printenv SSH_SERVER_KEY | base64 -d > $HOME/.ssh/known_hosts
+      - printenv SSH_CLIENT_KEY | base64 -d > $HOME/.ssh/id_rsa
+      - chmod 600 $HOME/.ssh/id_rsa
+      - git clone -b $DRONE_SOURCE_BRANCH --depth 1 $DRONE_GIT_SSH_URL .
+      - git checkout $DRONE_COMMIT
+    when:
+      event: [pull_request]
+      action: [opened, synchronized, create]
+
+  - name: validate
+    image: golang
+    volumes:
+      - name: go-package-cache
+        path: /go
+    commands:
+      - make fmt-check
+      - make vet
+    when:
+      event: [tag, pull_request]
+      action: [opened, synchronized, create]
+
+  - name: build
+    image: golang
+    volumes:
+      - name: go-package-cache
+        path: /go
+    commands:
+      - make build
+    when:
+      event: [tag, pull_request]
+      action: [opened, synchronized, create]
+
+  - name: deploy
+    image: golang
+    volumes:
+      - name: tf-plugins-location
+        path: /tf-plugins
+    commands:
+      - make install VERSION=$DRONE_TAG OUTPUT_FOLDER=/tf-plugins
+    when:
+      event: [tag]
+
+volumes:
+  - name: tf-plugins-location
+    host:
+      path: /root/.terraform.d/plugins
+  - name: go-package-cache
+    temp: {}
+
+---
+kind: secret
+name: ssh-client-key
+get:
+  path: ci-cd-git
+  name: SSH_CLIENT_KEY
+
+---
+kind: secret
+name: ssh-server-key
+get:
+  path: ci-cd-git
+  name: SSH_SERVER_KEY
